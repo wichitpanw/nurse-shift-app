@@ -10,6 +10,11 @@
             <span class="badge bg-primary px-3 py-2 small" id="roleDisplay">...</span>
         </div>
 
+        <div class="alert alert-warning border-0 shadow-sm py-2 px-3 mb-3 d-flex align-items-center" style="border-radius: 12px; font-size: 12px;">
+            <i class="fa-solid fa-circle-info me-2"></i>
+            <div>ท่านสามารถ <strong>คลิกที่รายการเวรในปฏิทิน</strong> เพื่อส่งคำขอเข้าปฏิบัติงานแทนเพื่อนได้ค่ะ</div>
+        </div>
+
         <div id="swapAlertArea" class="mb-2"></div>
 
         <div class="card shadow-sm border-0" style="border-radius: 15px;">
