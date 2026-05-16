@@ -349,11 +349,14 @@ function getShiftSummary() {
   
   var summaryMap = {};
   
-  // Initialize map with active nurses
+  // Initialize map with active nurses (Exclude SuperAdmin)
   for (var i = 1; i < userData.length; i++) {
-    if(userData[i][6].toString().trim().toLowerCase() === "active") {
+    var role = userData[i][4].toString();
+    var status = userData[i][6].toString().trim().toLowerCase();
+    
+    if(status === "active" && role !== "SuperAdmin") {
       summaryMap[userData[i][0].toString()] = {
-        id: userData[i][0].toString(), // ⚡ Ensure ID is included
+        id: userData[i][0].toString(),
         name: userData[i][1].toString(),
         total: 0,
         morning: 0,
