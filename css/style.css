@@ -1,0 +1,33 @@
+body {
+    background-color: #f4f7f6;
+    font-family: 'Segoe UI', Tahoma, sans-serif;
+    -webkit-tap-highlight-color: transparent;
+}
+
+.page-section {
+    display: none;
+}
+
+.page-section.active {
+    display: block;
+}
+
+.nav-link-custom {
+    color: rgba(255, 255, 255, 0.8);
+    font-size: 20px;
+    transition: 0.2s;
+}
+
+.nav-link-custom:hover,
+.nav-link-custom.active {
+    color: #fff;
+}
+
+/* Fix for FullCalendar on mobile */
+.fc .fc-toolbar-title {
+    font-size: 1.2em;
+}
+
+.fc .fc-button {
+    padding: 0.2em 0.4em;
+}

@@ -1,0 +1,12 @@
+# IDE
+.vscode/
+.idea/
+
+# OS files
+Thumbs.db
+Desktop.ini
+
+# Project specific
+from appscript/
+backend/
+backend_api.gs
