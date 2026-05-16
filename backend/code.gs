@@ -52,11 +52,98 @@ function doPost(e) {
       case 'deleteUser':
         response = deleteUser(data.userId);
         break;
-      case 'getShiftSummary': // New action
+      case 'getShiftSummary':
         response = getShiftSummary();
+        break;
+      case 'getManagementData': // New action
+        response = getManagementData(data.date);
+        break;
+      case 'copySchedule': // New action
+        response = copySchedule(data.targetDate, data.sourceDate);
         break;
       default:
         response = { success: false, message: "Unknown action: " + action };
+...
+// === Management Functions ===
+
+function getManagementData(date) {
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var userSheet = ss.getSheetByName("tb_users");
+  var scheduleSheet = ss.getSheetByName("tb_schedules");
+  if (!userSheet || !scheduleSheet) return { nurses: [], shifts: {} };
+
+  var userData = userSheet.getDataRange().getValues();
+  var scheduleData = scheduleSheet.getDataRange().getValues();
+  var targetDateStr = Utilities.formatDate(new Date(date), ss.getSpreadsheetTimeZone(), "yyyy-MM-dd");
+
+  var nurses = [];
+  for (var i = 1; i < userData.length; i++) {
+    var role = userData[i][4].toString();
+    var status = userData[i][6].toString().trim().toLowerCase();
+    if(status === "active" && role !== "SuperAdmin") {
+      nurses.push({
+        id: userData[i][0].toString(),
+        name: userData[i][1].toString(),
+        dept: userData[i][5].toString()
+      });
+    }
+  }
+
+  var shifts = {};
+  for (var j = 1; j < scheduleData.length; j++) {
+    var shiftDate = scheduleData[j][2];
+    if (!shiftDate) continue;
+    var rowDateStr = Utilities.formatDate(new Date(shiftDate), ss.getSpreadsheetTimeZone(), "yyyy-MM-dd");
+    if (rowDateStr === targetDateStr) {
+      shifts[scheduleData[j][1].toString()] = scheduleData[j][3].toString();
+    }
+  }
+
+  return { nurses: nurses, shifts: shifts };
+}
+
+function copySchedule(targetDate, sourceDate) {
+  try {
+    var ss = SpreadsheetApp.getActiveSpreadsheet();
+    var sheet = ss.getSheetByName("tb_schedules");
+    var data = sheet.getDataRange().getValues();
+    
+    var tDate = new Date(targetDate);
+    var sDate = new Date(sourceDate);
+    var targetDateStr = Utilities.formatDate(tDate, ss.getSpreadsheetTimeZone(), "yyyy-MM-dd");
+    var sourceDateStr = Utilities.formatDate(sDate, ss.getSpreadsheetTimeZone(), "yyyy-MM-dd");
+
+    // 1. Delete existing shifts on target date
+    for (var i = data.length - 1; i >= 1; i--) {
+      if (!data[i][2]) continue;
+      var rowDateStr = Utilities.formatDate(new Date(data[i][2]), ss.getSpreadsheetTimeZone(), "yyyy-MM-dd");
+      if (rowDateStr === targetDateStr) {
+        sheet.deleteRow(i + 1);
+      }
+    }
+
+    // 2. Copy shifts from source date
+    var newData = sheet.getDataRange().getValues(); // Refresh data after deletion
+    var shiftsToCopy = [];
+    for (var j = 1; j < data.length; j++) {
+      if (!data[j][2]) continue;
+      var rowDateStr = Utilities.formatDate(new Date(data[j][2]), ss.getSpreadsheetTimeZone(), "yyyy-MM-dd");
+      if (rowDateStr === sourceDateStr) {
+        var scheduleId = "SCH-" + new Date().getTime() + "-" + j;
+        shiftsToCopy.push([scheduleId, data[j][1], tDate, data[j][3], "Confirmed"]);
+      }
+    }
+
+    if (shiftsToCopy.length > 0) {
+      sheet.getRange(sheet.getLastRow() + 1, 1, shiftsToCopy.length, 5).setValues(shiftsToCopy);
+    }
+
+    return { success: true, message: "คัดลอกตารางเวรจากวันที่ " + sourceDateStr + " มาเรียบร้อยแล้วค่ะ (จำนวน " + shiftsToCopy.length + " รายการ)" };
+  } catch (e) {
+    return { success: false, message: e.toString() };
+  }
+}
+
     }
   } catch (err) {
     response = { success: false, message: err.toString() };
