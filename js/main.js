@@ -10,6 +10,8 @@ function showPage(pageId) {
     } else {
         alert('ระบบหาหน้าจอ ' + pageId + ' ไม่เจอค่ะ');
     }
+}
+
 function navigateTo(pageId, element) {
     showPage(pageId);
     document.querySelectorAll('.nav-link-custom').forEach(function (nav) {
@@ -48,7 +50,17 @@ function loginSuccess(userData) {
         if (typeof loadPendingSwaps === 'function') loadPendingSwaps();
     }, 300);
 }
-...
+
+function handleLogout() {
+    var logModal = new bootstrap.Modal(document.getElementById('logoutConfirmModal'));
+    logModal.show();
+}
+
+function executeLogout() {
+    localStorage.removeItem('currentUser');
+    location.reload();
+}
+
 // Auto-login if session exists
 window.onload = function() {
     const savedUser = localStorage.getItem('currentUser');
@@ -63,17 +75,4 @@ window.onload = function() {
             loadPendingSwaps();
         }
     }, 60000); // Check every 60 seconds
-};
-
-function executeLogout() {
-    localStorage.removeItem('currentUser');
-    location.reload();
-}
-
-// Auto-login if session exists
-window.onload = function() {
-    const savedUser = localStorage.getItem('currentUser');
-    if (savedUser) {
-        loginSuccess(JSON.parse(savedUser));
-    }
 };
