@@ -24,6 +24,12 @@
                 <a href="javascript:void(0);" id="nav-calendar" class="nav-link-custom active" onclick="navigateTo('page-calendar', this)">
                     <i class="fa-solid fa-calendar-days"></i>
                 </a>
+                <a href="javascript:void(0);" id="nav-pending" class="nav-link-custom position-relative" onclick="navigateTo('page-pending', this)">
+                    <i class="fa-solid fa-bell"></i>
+                    <span id="pending-badge" class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger d-none" style="font-size: 8px;">
+                        0
+                    </span>
+                </a>
                 <a href="javascript:void(0);" id="nav-manage" class="nav-link-custom d-none" onclick="navigateTo('page-manage', this)">
                     <i class="fa-solid fa-pen-to-square"></i>
                 </a>
@@ -50,6 +56,9 @@
         </div>
         <div id="page-users" class="page-section">
             <!-- Manage Users Component -->
+        </div>
+        <div id="page-pending" class="page-section">
+            <!-- Pending Swaps Component -->
         </div>
     </div>
 
@@ -84,6 +93,7 @@
     <script src="components/calendar.js"></script>
     <script src="components/manage-schedule.js"></script>
     <script src="components/manage-users.js"></script>
+    <script src="components/pending-swaps.js"></script>
 
 </body>
 </html>
