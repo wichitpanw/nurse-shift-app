@@ -1,4 +1,4 @@
-const API_URL = 'https://script.google.com/macros/s/AKfycbxReQDcGFRa1ID_jK4iQCf6wjmI05PChplruetgT_OAbthsEw2jIHWwEWw5q57vjbpAHw/execL'; // ใส่ URL ที่ได้จากการ Deploy Web App นะคะ
+const API_URL = 'https://script.google.com/macros/s/AKfycbxReQDcGFRa1ID_jK4iQCf6wjmI05PChplruetgT_OAbthsEw2jIHWwEWw5q57vjbpAHw/exec'; // ใส่ URL ที่ได้จากการ Deploy Web App นะคะ
 
 async function apiCall(action, data = {}) {
     try {
