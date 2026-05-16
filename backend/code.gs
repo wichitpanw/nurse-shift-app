@@ -34,13 +34,13 @@ function doPost(e) {
       case 'getMyPendingSwaps':
         response = getMyPendingSwaps(data.userEmail);
         break;
-      case 'getAllMySwaps': // New action
+      case 'getAllMySwaps':
         response = getAllMySwaps(data.userEmail);
         break;
       case 'approveSwap':
         response = approveSwap(data.swapId);
         break;
-      case 'rejectSwap': // New action
+      case 'rejectSwap':
         response = rejectSwap(data.swapId);
         break;
       case 'getManageUsersList':
@@ -51,6 +51,9 @@ function doPost(e) {
         break;
       case 'deleteUser':
         response = deleteUser(data.userId);
+        break;
+      case 'getShiftSummary': // New action
+        response = getShiftSummary();
         break;
       default:
         response = { success: false, message: "Unknown action: " + action };
@@ -182,7 +185,20 @@ function createSwapRequest(scheduleId, ownerId, requesterEmail) {
     }
   }
   if(!requesterId) return { success: false, message: "ไม่พบข้อมูลผู้ส่งคำขอค่ะ" };
-  if(requesterId === ownerId) return { success: false, message: "นี่คือเวรของคุณอยู่แล้วค่ะ" };
+  
+  // ⚡ Block self-swap
+  if(requesterId === ownerId) {
+    return { success: false, message: "นี่คือเวรของคุณอยู่แล้วนะคะ ไม่ต้องส่งคำขอแลกกับตัวเองน้า" };
+  }
+  
+  // Check for existing pending request
+  var swapData = swapSheet.getDataRange().getValues();
+  for(var k=1; k<swapData.length; k++) {
+    if(swapData[k][1].toString() === scheduleId && swapData[k][2].toString() === requesterId && swapData[k][4].toString() === "Pending") {
+       return { success: false, message: "คุณส่งคำขอสำหรับเวรนี้ไปแล้วนะคะ รอเพื่อนตอบกลับก่อนน้า" };
+    }
+  }
+
   var swapId = "SWAP-" + new Date().getTime();
   swapSheet.appendRow([swapId, scheduleId, requesterId, ownerId, "Pending"]);
   return { success: true, message: "ส่งคำขอเข้าเวรแทนสำเร็จแล้วค่ะ" };
@@ -229,7 +245,6 @@ function getMyPendingSwaps(userEmail) {
   return myRequests;
 }
 
-// New function to get all incoming and outgoing swaps
 function getAllMySwaps(userEmail) {
   var ss = SpreadsheetApp.getActiveSpreadsheet();
   var userSheet = ss.getSheetByName("tb_users");
@@ -320,6 +335,47 @@ function rejectSwap(swapId) {
     }
   }
   return { success: false, message: "เกิดข้อผิดพลาดในการปฏิเสธค่ะ" };
+}
+
+// === Dashboard Summary Function ===
+function getShiftSummary() {
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var scheduleSheet = ss.getSheetByName("tb_schedules");
+  var userSheet = ss.getSheetByName("tb_users");
+  if (!scheduleSheet || !userSheet) return [];
+  
+  var scheduleData = scheduleSheet.getDataRange().getValues();
+  var userData = userSheet.getDataRange().getValues();
+  
+  var summaryMap = {};
+  
+  // Initialize map with active nurses
+  for (var i = 1; i < userData.length; i++) {
+    if(userData[i][6].toString().trim().toLowerCase() === "active") {
+      summaryMap[userData[i][0].toString()] = {
+        name: userData[i][1].toString(),
+        total: 0,
+        morning: 0,
+        afternoon: 0,
+        night: 0
+      };
+    }
+  }
+  
+  // Count shifts
+  for (var j = 1; j < scheduleData.length; j++) {
+    var userId = scheduleData[j][1].toString();
+    var shiftType = scheduleData[j][3].toString();
+    
+    if (summaryMap[userId]) {
+      summaryMap[userId].total++;
+      if (shiftType === "เช้า") summaryMap[userId].morning++;
+      else if (shiftType === "บ่าย") summaryMap[userId].afternoon++;
+      else if (shiftType === "ดึก") summaryMap[userId].night++;
+    }
+  }
+  
+  return Object.keys(summaryMap).map(function(key) { return summaryMap[key]; });
 }
 
 // === เพิ่มเติมสำหรับ Manage Users ===

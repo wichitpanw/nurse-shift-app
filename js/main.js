@@ -25,6 +25,9 @@ function navigateTo(pageId, element) {
     if (pageId === 'page-pending' && typeof loadPendingSwaps === 'function') {
         loadPendingSwaps();
     }
+    if (pageId === 'page-summary' && typeof loadShiftSummary === 'function') {
+        loadShiftSummary();
+    }
 }
 
 function loginSuccess(userData) {
