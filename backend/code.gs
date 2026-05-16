@@ -353,6 +353,7 @@ function getShiftSummary() {
   for (var i = 1; i < userData.length; i++) {
     if(userData[i][6].toString().trim().toLowerCase() === "active") {
       summaryMap[userData[i][0].toString()] = {
+        id: userData[i][0].toString(), // ⚡ Ensure ID is included
         name: userData[i][1].toString(),
         total: 0,
         morning: 0,

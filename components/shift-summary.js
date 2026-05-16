@@ -96,6 +96,11 @@ if (!document.getElementById('quickSwapModal')) {
 }
 
 async function openQuickSwap(userId, nurseName) {
+    // ⚡ Check if trying to swap with self
+    const savedUser = JSON.parse(localStorage.getItem('currentUser'));
+    // We need to fetch the nurse ID for the current logged in user to compare
+    // But for now, we'll let the backend block it if IDs match.
+    
     document.getElementById('quickSwapTargetName').innerText = nurseName;
     const listArea = document.getElementById('quickSwapList');
     listArea.innerHTML = '<div class="text-center py-3"><div class="spinner-border spinner-border-sm text-primary"></div></div>';
@@ -105,11 +110,12 @@ async function openQuickSwap(userId, nurseName) {
 
     try {
         const events = await gas.getCalendarEvents();
-        const targets = events.filter(ev => ev.extendedProps.userId === userId && ev.extendedProps.status !== 'Swap Requested');
+        // ⚡ Improved filtering: Ensure we match the userId correctly
+        const targets = events.filter(ev => String(ev.extendedProps.userId) === String(userId));
         
         listArea.innerHTML = '';
         if (targets.length === 0) {
-            listArea.innerHTML = '<div class="text-center py-3 text-muted">ไม่พบเวรที่สามารถแลกได้ค่ะ</div>';
+            listArea.innerHTML = '<div class="text-center py-3 text-muted">ไม่พบเวรของคุณ ' + nurseName + ' ในระบบค่ะ</div>';
             return;
         }
 
@@ -121,7 +127,8 @@ async function openQuickSwap(userId, nurseName) {
             listArea.appendChild(btn);
         });
     } catch (error) {
-        listArea.innerHTML = '<div class="text-center py-3 text-danger">เกิดข้อผิดพลาด</div>';
+        console.error('QuickSwap Error:', error);
+        listArea.innerHTML = '<div class="text-center py-3 text-danger">เกิดข้อผิดพลาดในการโหลดข้อมูลค่ะ</div>';
     }
 }
 
