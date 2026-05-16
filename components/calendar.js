@@ -176,10 +176,10 @@ async function checkIncomingSwapRequests() {
                 var card = document.createElement('div');
                 card.className = 'alert alert-info shadow-sm p-3 border-0 d-flex flex-column gap-2 mb-2';
                 card.style.borderRadius = '12px';
-                card.innerHTML = \`
-          <div class="small text-dark"><i class="fa-solid fa-bell text-warning me-2"></i>คุณ <strong>\${req.requesterName}</strong> ขอเข้าเวรแทนในวันที่ \${req.date} (\${req.shift})</div>
-          <button class="btn btn-sm btn-success fw-bold w-100" style="border-radius:6px;" onclick="handleApproveSwap('\${req.swapId}')"><i class="fa-solid fa-circle-check me-1"></i>ยินยอมให้เข้าแทน</button>
-        \`;
+                card.innerHTML = `
+          <div class="small text-dark"><i class="fa-solid fa-bell text-warning me-2"></i>คุณ <strong>${req.requesterName}</strong> ขอเข้าเวรแทนในวันที่ ${req.date} (${req.shift})</div>
+          <button class="btn btn-sm btn-success fw-bold w-100" style="border-radius:6px;" onclick="handleApproveSwap('${req.swapId}')"><i class="fa-solid fa-circle-check me-1"></i>ยินยอมให้เข้าแทน</button>
+        `;
                 alertArea.appendChild(card);
             });
         }

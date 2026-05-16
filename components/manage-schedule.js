@@ -70,18 +70,18 @@ async function loadNursesForManage() {
             var item = document.createElement('div');
             item.className = 'list-group-item p-3 bg-white border-0 border-bottom d-flex justify-content-between align-items-center';
 
-            item.innerHTML = '<div>' +
-                '<span class="fw-bold d-block text-dark">' + nurse.name + '</span>' +
-                '<span class="badge bg-light text-muted border p-1" style="font-size: 10px; font-weight: normal;" id="status-' + nurse.id + '">ยังไม่ได้ลงเวรวันนี้</span>' +
-                '</div>' +
-                '<div class="d-flex flex-column align-items-end gap-1">' +
-                '<div class="btn-group btn-group-sm">' +
-                '<button class="btn btn-outline-warning text-dark fw-bold" onclick="assignShift(\\'' + nurse.id + '\\', \\'' + nurse.name + '\\', \\'เช้า\\')">เช้า</button>' +
-                '<button class="btn btn-outline-danger fw-bold" onclick="assignShift(\\'' + nurse.id + '\\', \\'' + nurse.name + '\\', \\'บ่าย\\')">บ่าย</button>' +
-                '<button class="btn btn-outline-secondary fw-bold" onclick="assignShift(\\'' + nurse.id + '\\', \\'' + nurse.name + '\\', \\'ดึก\\')">ดึก</button>' +
-                '</div>' +
-                '<button class="btn btn-sm btn-link text-danger p-0 mt-1 small" style="font-size: 11px; text-decoration: none;" onclick="removeShift(\\'' + nurse.id + '\\', \\'' + nurse.name + '\\')"><i class="fa-solid fa-trash-can me-1"></i>ล้างเวรวันนี้</button>' +
-                '</div>';
+            item.innerHTML = `<div>
+                <span class="fw-bold d-block text-dark">${nurse.name}</span>
+                <span class="badge bg-light text-muted border p-1" style="font-size: 10px; font-weight: normal;" id="status-${nurse.id}">ยังไม่ได้ลงเวรวันนี้</span>
+                </div>
+                <div class="d-flex flex-column align-items-end gap-1">
+                <div class="btn-group btn-group-sm">
+                <button class="btn btn-outline-warning text-dark fw-bold" onclick="assignShift('${nurse.id}', '${nurse.name}', 'เช้า')">เช้า</button>
+                <button class="btn btn-outline-danger fw-bold" onclick="assignShift('${nurse.id}', '${nurse.name}', 'บ่าย')">บ่าย</button>
+                <button class="btn btn-outline-secondary fw-bold" onclick="assignShift('${nurse.id}', '${nurse.name}', 'ดึก')">ดึก</button>
+                </div>
+                <button class="btn btn-sm btn-link text-danger p-0 mt-1 small" style="font-size: 11px; text-decoration: none;" onclick="removeShift('${nurse.id}', '${nurse.name}')"><i class="fa-solid fa-trash-can me-1"></i>ล้างเวรวันนี้</button>
+                </div>`;
 
             area.appendChild(item);
         });

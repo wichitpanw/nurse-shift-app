@@ -84,15 +84,20 @@ async function loadManageUsers() {
             if (u.role === 'SuperAdmin') roleBadge = 'bg-primary text-white';
             if (u.role === 'Admin') roleBadge = 'bg-info text-white';
 
-            item.innerHTML = '<div>' +
-                '<span class="fw-bold text-dark d-block">' + u.name + ' <span class="badge ' + badgeColor + '" style="font-size:9px;">' + u.status + '</span></span>' +
-                '<small class="text-muted d-block" style="font-size:11px;">' + u.email + ' | สิทธิ์: <span class="badge ' + roleBadge + '">' + u.role + '</span></small>' +
-                '</div>' +
-                '<div>' +
-                '<button class="btn btn-sm btn-outline-primary me-1" onclick=\\'editUserField(' + JSON.stringify(u).replace(/"/g, '&quot;') + ')\\')\\'><i class="fa-solid fa-user-pen"></i></button>' +
-                '<button class="btn btn-sm btn-outline-danger" onclick="handleDeleteUser(\\'' + u.id + '\\')"><i class="fa-solid fa-user-xmark"></i></button>' +
-                '</div>';
+            item.innerHTML = `<div>
+                <span class="fw-bold text-dark d-block">${u.name} <span class="badge ${badgeColor}" style="font-size:9px;">${u.status}</span></span>
+                <small class="text-muted d-block" style="font-size:11px;">${u.email} | สิทธิ์: <span class="badge ${roleBadge}">${u.role}</span></small>
+                </div>
+                <div>
+                <button class="btn btn-sm btn-outline-primary me-1" id="edit-btn-${u.id}"><i class="fa-solid fa-user-pen"></i></button>
+                <button class="btn btn-sm btn-outline-danger" onclick="handleDeleteUser('${u.id}')"><i class="fa-solid fa-user-xmark"></i></button>
+                </div>`;
             area.appendChild(item);
+            
+            // Add click listener to the edit button to avoid JSON stringify escaping issues
+            document.getElementById(`edit-btn-${u.id}`).addEventListener('click', function() {
+                editUserField(u);
+            });
         });
     } catch (error) {
         area.innerHTML = '<div class="text-center py-4 text-danger small">เกิดข้อผิดพลาดในการโหลดข้อมูล</div>';
@@ -105,6 +110,7 @@ async function handleSaveUser(event) {
     btn.disabled = true;
 
     var userData = {
+        action: 'saveUser',
         id: document.getElementById('userIdInput').value,
         name: document.getElementById('userName').value,
         email: document.getElementById('userEmail').value,
