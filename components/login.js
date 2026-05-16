@@ -24,6 +24,14 @@
                     เข้าสู่ระบบ
                 </button>
             </form>
+
+            <div class="mt-4 p-3 bg-light border border-info" style="border-radius: 12px;">
+                <div class="small fw-bold text-info mb-1"><i class="fa-solid fa-flask me-1"></i> สำหรับทดลองใช้งาน (Beta)</div>
+                <div class="small text-muted">คุณบีมสามารถใช้บัญชีนี้ทดสอบระบบได้เลยค่ะ:</div>
+                <div class="small mt-2"><strong>อีเมล:</strong> test@test.com</div>
+                <div class="small"><strong>รหัสผ่าน:</strong> test</div>
+                <div class="text-center mt-1" style="font-size: 10px; color: #aaa;">*ข้อมูลจริงจะแสดงเมื่อเปิดใช้งานระบบจริงค่ะ*</div>
+            </div>
         </div>
     </div>
 
