@@ -256,9 +256,7 @@ async function loadNurseMonthView() {
             const summary = dailySummary[dateStr] || { 'เช้า': [], 'บ่าย': [], 'ดึก': [] };
             
             const item = document.createElement('div');
-            // ⚡ Highlight row if the nurse has a shift
-            const highlightClass = currentShift ? 'border-start border-4 border-primary bg-primary-subtle' : '';
-            item.className = `list-group-item p-2 bg-white border-0 border-bottom ${highlightClass}`;
+            item.className = `list-group-item p-2 bg-white border-0 border-bottom`;
             
             const badgeHtml = getShiftBadge(`nurse-${d}`, currentShift);
             const dateLabel = new Date(dateStr).toLocaleDateString('th-TH', { day: 'numeric', month: 'short' });
@@ -305,14 +303,12 @@ async function quickNurseAction(userId, date, shift) {
 
             if (!shift) { 
                 label.className = 'badge bg-light text-muted border p-1'; label.innerText = 'ยังไม่มีเวร'; label.style.backgroundColor = ''; 
-                label.closest('.list-group-item').classList.remove('bg-primary-subtle', 'border-start', 'border-4', 'border-primary');
             }
             else {
                 const config = { 'เช้า': 'bg-warning text-dark', 'บ่าย': 'bg-danger text-white', 'ดึก': 'text-white' };
                 label.className = 'badge ' + config[shift] + ' p-1';
                 label.innerText = 'เวร' + shift;
                 label.style.backgroundColor = shift === 'ดึก' ? '#6f42c1' : '';
-                label.closest('.list-group-item').classList.add('bg-primary-subtle', 'border-start', 'border-4', 'border-primary');
             }
         }
     } catch (e) { console.error(e); }

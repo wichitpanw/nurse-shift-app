@@ -17,16 +17,16 @@
 
         <div id="swapAlertArea" class="mb-2"></div>
 
-        <div class="card shadow-sm border-0" style="border-radius: 15px;">
+        <div class="card shadow-sm border-0 mb-3" style="border-radius: 15px;">
             <div class="card-body p-2">
-                <div id="calendar" style="font-size: 13px;"></div>
+                <div id="calendar"></div>
             </div>
         </div>
 
-        <div class="d-flex justify-content-center gap-2 mt-3 small fw-bold">
-            <span class="badge" style="background-color: #ffc107; color: black;">🟡 เวรเช้า</span>
-            <span class="badge" style="background-color: #fd7e14;">🟠 เวรบ่าย</span>
-            <span class="badge" style="background-color: #6f42c1;">🟣 เวรดึก</span>
+        <div class="d-flex justify-content-center gap-2 mt-2 mb-3 small fw-bold">
+            <span class="badge" style="background-color: #ffc107; color: black;">🟡 เช้า</span>
+            <span class="badge" style="background-color: #fd7e14;">🟠 บ่าย</span>
+            <span class="badge" style="background-color: #6f42c1;">🟣 ดึก</span>
         </div>
     </div>
 
@@ -74,20 +74,6 @@
             </div>
         </div>
     </div>
-
-    <div class="modal fade" id="resultModal" tabindex="-1" aria-hidden="true">
-        <div class="modal-dialog modal-dialog-centered modal-sm p-3">
-            <div class="modal-content" style="border-radius: 15px; border: none;">
-                <div class="modal-body text-center p-4">
-                    <div id="resultIcon" class="mb-3"></div>
-                    <h5 class="fw-bold mb-2" id="resultTitle">แจ้งสถานะ</h5>
-                    <p class="text-muted small mb-4" id="resultBody">ดำเนินการเรียบร้อยแล้วค่ะ</p>
-                    <button type="button" class="btn btn-primary w-100 fw-bold small" data-bs-dismiss="modal"
-                        style="border-radius: 8px;">ตกลง</button>
-                </div>
-            </div>
-        </div>
-    </div>
     `;
 
     document.getElementById('page-calendar').innerHTML = calendarHtml;
@@ -96,6 +82,7 @@
 var globalUserData = null;
 var selectedEventData = null;
 var pendingApproveSwapId = null;
+var calendarInstance = null;
 
 async function loadCalendarData(userData) {
     globalUserData = userData;
@@ -107,12 +94,26 @@ async function loadCalendarData(userData) {
 
 async function initCalendar() {
     var calendarEl = document.getElementById('calendar');
-    var calendar = new FullCalendar.Calendar(calendarEl, {
-        initialView: 'dayGridMonth',
+    if (calendarInstance) {
+        calendarInstance.destroy();
+    }
+    
+    calendarInstance = new FullCalendar.Calendar(calendarEl, {
+        initialView: window.innerWidth < 500 ? 'listMonth' : 'dayGridMonth',
         locale: 'th',
-        headerToolbar: { left: 'prev', center: 'title', right: 'next' },
+        headerToolbar: {
+            left: 'prev,next today',
+            center: 'title',
+            right: 'dayGridMonth,listMonth'
+        },
+        buttonText: {
+            today: 'วันนี้',
+            month: 'ปฏิทิน',
+            list: 'รายการ'
+        },
         height: 'auto',
         eventDisplay: 'block',
+        displayEventTime: false,
         eventClick: function (info) {
             var props = info.event.extendedProps;
             selectedEventData = {
@@ -122,29 +123,27 @@ async function initCalendar() {
                 shift: props.shift,
                 date: info.event.startStr
             };
+            
+            // Check if clicking own shift
+            const savedUser = JSON.parse(localStorage.getItem('currentUser'));
+            if (selectedEventData.ownerId === savedUser.id) {
+                Swal.fire('นี่คือเวรของคุณ', 'ท่านไม่สามารถขอแลกเวรกับตัวเองได้ค่ะ', 'info');
+                return;
+            }
+
             document.getElementById('swapModalText').innerText = 'คุณต้องการส่งคำขอไปปฏิบัติงาน "เวร ' + props.shift + '" แทนคุณ "' + props.nurseName + '" ในวันที่ ' + info.event.startStr + ' ใช่หรือไม่คะ?';
             var myModal = new bootstrap.Modal(document.getElementById('swapConfirmModal'));
             myModal.show();
         }
     });
-    calendar.render();
+    calendarInstance.render();
 
     try {
         const events = await apiCall('getCalendarEvents');
-        calendar.addEventSource(events);
+        calendarInstance.addEventSource(events);
     } catch (error) {
         console.error('Error loading events:', error);
     }
-}
-
-function showResult(title, msg, isSuccess) {
-    document.getElementById('resultTitle').innerText = title;
-    document.getElementById('resultBody').innerText = msg;
-    document.getElementById('resultIcon').innerHTML = isSuccess
-        ? '<i class="fa-solid fa-circle-check fa-3x text-success"></i>'
-        : '<i class="fa-solid fa-circle-xmark fa-3x text-danger"></i>';
-    var myModal = new bootstrap.Modal(document.getElementById('resultModal'));
-    myModal.show();
 }
 
 async function submitSwapRequest() {
@@ -164,12 +163,18 @@ async function submitSwapRequest() {
         if (modalInstance) modalInstance.hide();
         btn.disabled = false;
         btn.innerText = 'ส่งคำขอ';
-        showResult(res.success ? 'สำเร็จ' : 'ขออภัย', res.message, res.success);
-        initCalendar();
+        
+        Swal.fire({
+            icon: res.success ? 'success' : 'error',
+            title: res.success ? 'สำเร็จ' : 'ขออภัย',
+            text: res.message
+        });
+        
+        if (res.success) initCalendar();
     } catch (error) {
         btn.disabled = false;
         btn.innerText = 'ส่งคำขอ';
-        showResult('ขออภัย', error.message, false);
+        Swal.fire('ขออภัย', error.message, 'error');
     }
 }
 
@@ -216,12 +221,18 @@ async function executeApproveSwap() {
     try {
         const res = await apiCall('approveSwap', { swapId: pendingApproveSwapId });
         btn.disabled = false;
-        showResult(res.success ? 'สำเร็จ' : 'ขออภัย', res.message, res.success);
+        
+        Swal.fire({
+            icon: res.success ? 'success' : 'error',
+            title: res.success ? 'สำเร็จ' : 'ขออภัย',
+            text: res.message
+        });
+        
         checkIncomingSwapRequests();
         initCalendar();
     } catch (error) {
         btn.disabled = false;
-        showResult('ขออภัย', error.message, false);
+        Swal.fire('ขออภัย', error.message, 'error');
     }
 
     pendingApproveSwapId = null;
