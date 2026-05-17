@@ -4,6 +4,13 @@
         <h5 class="fw-bold text-primary mb-3"><i class="fa-solid fa-chart-pie me-2"></i>สรุปภาระงาน (Workload)</h5>
         
         <div class="card shadow-sm border-0 mb-3" style="border-radius: 15px;">
+            <div class="card-body">
+                <label class="small text-muted fw-bold mb-1">เลือกเดือนที่ต้องการดู</label>
+                <input type="month" id="summaryMonth" class="form-control" onchange="loadShiftSummary()">
+            </div>
+        </div>
+
+        <div class="card shadow-sm border-0 mb-3" style="border-radius: 15px;">
             <div class="card-body p-0">
                 <div class="table-responsive">
                     <table class="table table-hover mb-0" style="font-size: 13px;">
@@ -13,12 +20,13 @@
                                 <th class="text-center">เช้า</th>
                                 <th class="text-center">บ่าย</th>
                                 <th class="text-center">ดึก</th>
-                                <th class="text-center pe-3">รวม</th>
+                                <th class="text-center">รวม</th>
+                                <th class="text-center pe-3">แลกเวร</th>
                             </tr>
                         </thead>
                         <tbody id="summaryTableBody">
                             <tr>
-                                <td colspan="5" class="text-center py-4 text-muted">กำลังโหลดข้อมูล...</td>
+                                <td colspan="6" class="text-center py-4 text-muted">กำลังโหลดข้อมูล...</td>
                             </tr>
                         </tbody>
                     </table>
@@ -27,24 +35,32 @@
         </div>
 
         <div class="alert alert-info border-0 shadow-sm small" style="border-radius: 12px;">
-            <i class="fa-solid fa-circle-info me-2"></i>ข้อมูลนี้สรุปจากตารางเวรทั้งหมดที่มีในระบบ เพื่อช่วยให้บริหารจัดการภาระงานได้อย่างทั่วถึงค่ะ
+            <i class="fa-solid fa-circle-info me-2"></i>ข้อมูลนี้สรุปภาระงานตามเดือนที่เลือก เพื่อช่วยให้บริหารจัดการได้อย่างทั่วถึงค่ะ
         </div>
     </div>
     `;
 
     document.getElementById('page-summary').innerHTML = shiftSummaryHtml;
+
+    // Set default month to current month
+    const now = new Date();
+    document.getElementById('summaryMonth').value = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
 })();
 
 async function loadShiftSummary() {
     const tableBody = document.getElementById('summaryTableBody');
-    if (!tableBody) return;
+    const monthPicker = document.getElementById('summaryMonth');
+    if (!tableBody || !monthPicker) return;
+
+    tableBody.innerHTML = '<tr><td colspan="6" class="text-center py-4 text-muted">กำลังโหลด...</td></tr>';
 
     try {
-        const data = await apiCall('getShiftSummary');
+        const [year, month] = monthPicker.value.split('-').map(Number);
+        const data = await apiCall('getShiftSummary', { month: month - 1, year: year });
         tableBody.innerHTML = '';
         
         if (data.length === 0) {
-            tableBody.innerHTML = '<tr><td colspan="5" class="text-center py-4 text-muted">ไม่พบข้อมูลเวรในระบบค่ะ</td></tr>';
+            tableBody.innerHTML = '<tr><td colspan="6" class="text-center py-4 text-muted">ไม่พบข้อมูลเวรในเดือนนี้ค่ะ</td></tr>';
             return;
         }
 
@@ -58,7 +74,7 @@ async function loadShiftSummary() {
                 <td class="text-center"><span class="badge bg-warning text-dark" style="min-width: 25px;">${item.morning}</span></td>
                 <td class="text-center"><span class="badge bg-orange text-white" style="background-color: #fd7e14; min-width: 25px;">${item.afternoon}</span></td>
                 <td class="text-center"><span class="badge bg-purple text-white" style="background-color: #6f42c1; min-width: 25px;">${item.night}</span></td>
-                <td class="text-center"><span class="badge bg-primary" style="min-width: 30px; font-size: 11px;">${item.total}</span></td>
+                <td class="text-center pe-3"><span class="badge bg-primary" style="min-width: 30px; font-size: 11px;">${item.total}</span></td>
                 <td class="text-center pe-3">
                     <button class="btn btn-sm btn-outline-primary p-1" style="font-size: 10px;" onclick="openQuickSwap('${item.id}', '${item.name}')">
                         <i class="fa-solid fa-right-left"></i>
@@ -96,11 +112,6 @@ if (!document.getElementById('quickSwapModal')) {
 }
 
 async function openQuickSwap(userId, nurseName) {
-    // ⚡ Check if trying to swap with self
-    const savedUser = JSON.parse(localStorage.getItem('currentUser'));
-    // We need to fetch the nurse ID for the current logged in user to compare
-    // But for now, we'll let the backend block it if IDs match.
-    
     document.getElementById('quickSwapTargetName').innerText = nurseName;
     const listArea = document.getElementById('quickSwapList');
     listArea.innerHTML = '<div class="text-center py-3"><div class="spinner-border spinner-border-sm text-primary"></div></div>';
@@ -110,7 +121,6 @@ async function openQuickSwap(userId, nurseName) {
 
     try {
         const events = await gas.getCalendarEvents();
-        // ⚡ Improved filtering: Ensure we match the userId correctly
         const targets = events.filter(ev => String(ev.extendedProps.userId) === String(userId));
         
         listArea.innerHTML = '';
@@ -133,7 +143,7 @@ async function openQuickSwap(userId, nurseName) {
 }
 
 async function confirmQuickSwap(schId, ownerId, name, date, shift) {
-    if (!confirm(`ยืนยันการส่งคำขอสลับเวรกับคุณ ${name}\\nวันที่ ${date} (${shift}) ใช่หรือไม่คะ?`)) return;
+    if (!confirm(`ยืนยันการส่งคำขอสลับเวรกับคุณ ${name}\nวันที่ ${date} (${shift}) ใช่หรือไม่คะ?`)) return;
     
     try {
         const savedUser = JSON.parse(localStorage.getItem('currentUser'));

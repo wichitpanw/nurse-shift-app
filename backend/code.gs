@@ -53,97 +53,16 @@ function doPost(e) {
         response = deleteUser(data.userId);
         break;
       case 'getShiftSummary':
-        response = getShiftSummary();
+        response = getShiftSummary(data.month, data.year);
         break;
-      case 'getManagementData': // New action
+      case 'getManagementData':
         response = getManagementData(data.date);
         break;
-      case 'copySchedule': // New action
-        response = copySchedule(data.targetDate, data.sourceDate);
+      case 'getNurseShifts':
+        response = getNurseShifts(data.userId, data.month, data.year);
         break;
       default:
         response = { success: false, message: "Unknown action: " + action };
-...
-// === Management Functions ===
-
-function getManagementData(date) {
-  var ss = SpreadsheetApp.getActiveSpreadsheet();
-  var userSheet = ss.getSheetByName("tb_users");
-  var scheduleSheet = ss.getSheetByName("tb_schedules");
-  if (!userSheet || !scheduleSheet) return { nurses: [], shifts: {} };
-
-  var userData = userSheet.getDataRange().getValues();
-  var scheduleData = scheduleSheet.getDataRange().getValues();
-  var targetDateStr = Utilities.formatDate(new Date(date), ss.getSpreadsheetTimeZone(), "yyyy-MM-dd");
-
-  var nurses = [];
-  for (var i = 1; i < userData.length; i++) {
-    var role = userData[i][4].toString();
-    var status = userData[i][6].toString().trim().toLowerCase();
-    if(status === "active" && role !== "SuperAdmin") {
-      nurses.push({
-        id: userData[i][0].toString(),
-        name: userData[i][1].toString(),
-        dept: userData[i][5].toString()
-      });
-    }
-  }
-
-  var shifts = {};
-  for (var j = 1; j < scheduleData.length; j++) {
-    var shiftDate = scheduleData[j][2];
-    if (!shiftDate) continue;
-    var rowDateStr = Utilities.formatDate(new Date(shiftDate), ss.getSpreadsheetTimeZone(), "yyyy-MM-dd");
-    if (rowDateStr === targetDateStr) {
-      shifts[scheduleData[j][1].toString()] = scheduleData[j][3].toString();
-    }
-  }
-
-  return { nurses: nurses, shifts: shifts };
-}
-
-function copySchedule(targetDate, sourceDate) {
-  try {
-    var ss = SpreadsheetApp.getActiveSpreadsheet();
-    var sheet = ss.getSheetByName("tb_schedules");
-    var data = sheet.getDataRange().getValues();
-    
-    var tDate = new Date(targetDate);
-    var sDate = new Date(sourceDate);
-    var targetDateStr = Utilities.formatDate(tDate, ss.getSpreadsheetTimeZone(), "yyyy-MM-dd");
-    var sourceDateStr = Utilities.formatDate(sDate, ss.getSpreadsheetTimeZone(), "yyyy-MM-dd");
-
-    // 1. Delete existing shifts on target date
-    for (var i = data.length - 1; i >= 1; i--) {
-      if (!data[i][2]) continue;
-      var rowDateStr = Utilities.formatDate(new Date(data[i][2]), ss.getSpreadsheetTimeZone(), "yyyy-MM-dd");
-      if (rowDateStr === targetDateStr) {
-        sheet.deleteRow(i + 1);
-      }
-    }
-
-    // 2. Copy shifts from source date
-    var newData = sheet.getDataRange().getValues(); // Refresh data after deletion
-    var shiftsToCopy = [];
-    for (var j = 1; j < data.length; j++) {
-      if (!data[j][2]) continue;
-      var rowDateStr = Utilities.formatDate(new Date(data[j][2]), ss.getSpreadsheetTimeZone(), "yyyy-MM-dd");
-      if (rowDateStr === sourceDateStr) {
-        var scheduleId = "SCH-" + new Date().getTime() + "-" + j;
-        shiftsToCopy.push([scheduleId, data[j][1], tDate, data[j][3], "Confirmed"]);
-      }
-    }
-
-    if (shiftsToCopy.length > 0) {
-      sheet.getRange(sheet.getLastRow() + 1, 1, shiftsToCopy.length, 5).setValues(shiftsToCopy);
-    }
-
-    return { success: true, message: "คัดลอกตารางเวรจากวันที่ " + sourceDateStr + " มาเรียบร้อยแล้วค่ะ (จำนวน " + shiftsToCopy.length + " รายการ)" };
-  } catch (e) {
-    return { success: false, message: e.toString() };
-  }
-}
-
     }
   } catch (err) {
     response = { success: false, message: err.toString() };
@@ -158,7 +77,7 @@ function doGet(e) {
     .setMimeType(ContentService.MimeType.JSON);
 }
 
-// === เดิมจาก code.gs ===
+// === Auth Functions ===
 
 function checkLogin(email, password) {
   var ss = SpreadsheetApp.getActiveSpreadsheet();
@@ -176,6 +95,8 @@ function checkLogin(email, password) {
   }
   return { success: false, message: "อีเมล หรือ รหัสผ่านไม่ถูกต้อง กรุณาตรวจสอบอีกครั้งค่ะ" };
 }
+
+// === Calendar Functions ===
 
 function getCalendarEvents() {
   var ss = SpreadsheetApp.getActiveSpreadsheet();
@@ -258,6 +179,8 @@ function deleteShift(userId, date) {
   } catch(e) { return { success: false }; }
 }
 
+// === Swap Functions ===
+
 function createSwapRequest(scheduleId, ownerId, requesterEmail) {
   var ss = SpreadsheetApp.getActiveSpreadsheet();
   var userSheet = ss.getSheetByName("tb_users");
@@ -272,20 +195,15 @@ function createSwapRequest(scheduleId, ownerId, requesterEmail) {
     }
   }
   if(!requesterId) return { success: false, message: "ไม่พบข้อมูลผู้ส่งคำขอค่ะ" };
-  
-  // ⚡ Block self-swap
   if(requesterId === ownerId) {
     return { success: false, message: "นี่คือเวรของคุณอยู่แล้วนะคะ ไม่ต้องส่งคำขอแลกกับตัวเองน้า" };
   }
-  
-  // Check for existing pending request
   var swapData = swapSheet.getDataRange().getValues();
   for(var k=1; k<swapData.length; k++) {
     if(swapData[k][1].toString() === scheduleId && swapData[k][2].toString() === requesterId && swapData[k][4].toString() === "Pending") {
        return { success: false, message: "คุณส่งคำขอสำหรับเวรนี้ไปแล้วนะคะ รอเพื่อนตอบกลับก่อนน้า" };
     }
   }
-
   var swapId = "SWAP-" + new Date().getTime();
   swapSheet.appendRow([swapId, scheduleId, requesterId, ownerId, "Pending"]);
   return { success: true, message: "ส่งคำขอเข้าเวรแทนสำเร็จแล้วค่ะ" };
@@ -338,11 +256,9 @@ function getAllMySwaps(userEmail) {
   var swapSheet = ss.getSheetByName("tb_swaps");
   var scheduleSheet = ss.getSheetByName("tb_schedules");
   if (!swapSheet || !scheduleSheet) return { incoming: [], outgoing: [] };
-  
   var userData = userSheet.getDataRange().getValues();
   var swapData = swapSheet.getDataRange().getValues();
   var scheduleData = scheduleSheet.getDataRange().getValues();
-  
   var myId = "";
   var userMap = {}; 
   for(var i=1; i<userData.length; i++) {
@@ -351,7 +267,6 @@ function getAllMySwaps(userEmail) {
       myId = userData[i][0].toString();
     }
   }
-  
   var scheduleMap = {};
   for(var k=1; k<scheduleData.length; k++) {
     scheduleMap[scheduleData[k][0].toString()] = {
@@ -359,10 +274,8 @@ function getAllMySwaps(userEmail) {
       shift: scheduleData[k][3].toString()
     };
   }
-
   var incoming = [];
   var outgoing = [];
-  
   for(var j=1; j<swapData.length; j++) {
     var swap = {
       swapId: swapData[j][0].toString(),
@@ -371,11 +284,9 @@ function getAllMySwaps(userEmail) {
       ownerId: swapData[j][3].toString(),
       status: swapData[j][4].toString()
     };
-    
     var schInfo = scheduleMap[swap.scheduleId] || { date: "ไม่ระบุ", shift: "ไม่ระบุ" };
     swap.date = schInfo.date;
     swap.shift = schInfo.shift;
-
     if (swap.ownerId === myId) {
       swap.otherName = userMap[swap.requesterId] || "บุคคลากรภายนอก";
       incoming.push(swap);
@@ -384,7 +295,6 @@ function getAllMySwaps(userEmail) {
       outgoing.push(swap);
     }
   }
-  
   return { incoming: incoming, outgoing: outgoing };
 }
 
@@ -424,52 +334,111 @@ function rejectSwap(swapId) {
   return { success: false, message: "เกิดข้อผิดพลาดในการปฏิเสธค่ะ" };
 }
 
-// === Dashboard Summary Function ===
-function getShiftSummary() {
+// === Summary & Management Functions ===
+
+function getShiftSummary(month, year) {
   var ss = SpreadsheetApp.getActiveSpreadsheet();
   var scheduleSheet = ss.getSheetByName("tb_schedules");
   var userSheet = ss.getSheetByName("tb_users");
   if (!scheduleSheet || !userSheet) return [];
-  
   var scheduleData = scheduleSheet.getDataRange().getValues();
   var userData = userSheet.getDataRange().getValues();
-  
+
+  // Default to current month/year if not provided
+  if (month === undefined || year === undefined) {
+    var now = new Date();
+    month = (month === undefined) ? now.getMonth() : month;
+    year = (year === undefined) ? now.getFullYear() : year;
+  }
+
   var summaryMap = {};
-  
-  // Initialize map with active nurses (Exclude SuperAdmin)
   for (var i = 1; i < userData.length; i++) {
     var role = userData[i][4].toString();
     var status = userData[i][6].toString().trim().toLowerCase();
-    
     if(status === "active" && role !== "SuperAdmin") {
       summaryMap[userData[i][0].toString()] = {
         id: userData[i][0].toString(),
         name: userData[i][1].toString(),
-        total: 0,
-        morning: 0,
-        afternoon: 0,
-        night: 0
+        total: 0, morning: 0, afternoon: 0, night: 0
       };
     }
   }
-  
-  // Count shifts
   for (var j = 1; j < scheduleData.length; j++) {
-    var userId = scheduleData[j][1].toString();
-    var shiftType = scheduleData[j][3].toString();
-    
-    if (summaryMap[userId]) {
-      summaryMap[userId].total++;
-      if (shiftType === "เช้า") summaryMap[userId].morning++;
-      else if (shiftType === "บ่าย") summaryMap[userId].afternoon++;
-      else if (shiftType === "ดึก") summaryMap[userId].night++;
+    var shiftDate = new Date(scheduleData[j][2]);
+    if (isNaN(shiftDate.getTime())) continue; 
+
+    if (shiftDate.getMonth() === Number(month) && shiftDate.getFullYear() === Number(year)) {
+      var userId = scheduleData[j][1].toString();
+      var shiftType = scheduleData[j][3].toString();
+      if (summaryMap[userId]) {
+        summaryMap[userId].total++;
+        if (shiftType === "เช้า") summaryMap[userId].morning++;
+        else if (shiftType === "บ่าย") summaryMap[userId].afternoon++;
+        else if (shiftType === "ดึก") summaryMap[userId].night++;
+      }
     }
   }
-  
   return Object.keys(summaryMap).map(function(key) { return summaryMap[key]; });
 }
 
-// === เพิ่มเติมสำหรับ Manage Users ===
+function getManagementData(date) {
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var userSheet = ss.getSheetByName("tb_users");
+  var scheduleSheet = ss.getSheetByName("tb_schedules");
+  if (!userSheet || !scheduleSheet) return { nurses: [], shifts: {} };
+  var userData = userSheet.getDataRange().getValues();
+  var scheduleData = scheduleSheet.getDataRange().getValues();
+  var targetDateStr = Utilities.formatDate(new Date(date), ss.getSpreadsheetTimeZone(), "yyyy-MM-dd");
+  var nurses = [];
+  for (var i = 1; i < userData.length; i++) {
+    var role = userData[i][4].toString();
+    var status = userData[i][6].toString().trim().toLowerCase();
+    if(status === "active" && role !== "SuperAdmin") {
+      nurses.push({ id: userData[i][0].toString(), name: userData[i][1].toString(), dept: userData[i][5].toString() });
+    }
+  }
+  var shifts = {};
+  for (var j = 1; j < scheduleData.length; j++) {
+    var shiftDate = scheduleData[j][2];
+    if (!shiftDate) continue;
+    var rowDateStr = Utilities.formatDate(new Date(shiftDate), ss.getSpreadsheetTimeZone(), "yyyy-MM-dd");
+    if (rowDateStr === targetDateStr) {
+      shifts[scheduleData[j][1].toString()] = scheduleData[j][3].toString();
+    }
+  }
+  return { nurses: nurses, shifts: shifts };
+}
+
+function getNurseShifts(userId, month, year) {
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var sheet = ss.getSheetByName("tb_schedules");
+  if (!sheet) return [];
+  var data = sheet.getDataRange().getValues();
+  var results = [];
+  for (var i = 1; i < data.length; i++) {
+    var shiftDate = new Date(data[i][2]);
+    if (data[i][1].toString() === userId.toString()) {
+      if (month != undefined && year != undefined) {
+        if (shiftDate.getMonth() === month && shiftDate.getFullYear() === year) {
+          results.push({
+            id: data[i][0].toString(),
+            date: Utilities.formatDate(shiftDate, ss.getSpreadsheetTimeZone(), "yyyy-MM-dd"),
+            shift: data[i][3].toString()
+          });
+        }
+      } else {
+        results.push({
+          id: data[i][0].toString(),
+          date: Utilities.formatDate(shiftDate, ss.getSpreadsheetTimeZone(), "yyyy-MM-dd"),
+          shift: data[i][3].toString()
+        });
+      }
+    }
+  }
+  return results;
+}
+
+// === User Management Functions ===
 
 function getManageUsersList() {
   var ss = SpreadsheetApp.getActiveSpreadsheet();
@@ -479,13 +448,8 @@ function getManageUsersList() {
   var users = [];
   for (var i = 1; i < data.length; i++) {
     users.push({
-      id: data[i][0],
-      name: data[i][1],
-      email: data[i][2],
-      password: data[i][3],
-      role: data[i][4],
-      dept: data[i][5],
-      status: data[i][6]
+      id: data[i][0], name: data[i][1], email: data[i][2],
+      password: data[i][3], role: data[i][4], dept: data[i][5], status: data[i][6]
     });
   }
   return users;
