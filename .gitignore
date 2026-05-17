@@ -1,4 +1,4 @@
-# IDE
+# IDE & Editors
 .vscode/
 .idea/
 
@@ -6,7 +6,16 @@
 Thumbs.db
 Desktop.ini
 
-# Project specific
+# Project Specific
 from appscript/
 backend/
 backend_api.gs
+legacy_gas_version/
+database_setup.sql
+
+# Gemini & AI Tools (Internal)
+GEMINI.md
+skills/
+.agents/
+.gemini/
+skills-lock.json
