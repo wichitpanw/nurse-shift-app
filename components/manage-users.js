@@ -73,7 +73,8 @@ async function loadManageUsers() {
     area.innerHTML = '<div class="text-center py-4"><div class="spinner-border text-primary spinner-border-sm"></div></div>';
 
     try {
-        const users = await apiCall('getManageUsersList');
+        const savedUser = JSON.parse(localStorage.getItem('currentUser'));
+        const users = await apiCall('getManageUsersList', { requesterRole: savedUser.role });
         area.innerHTML = '';
         users.forEach(function (u) {
             var item = document.createElement('div');

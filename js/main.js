@@ -41,7 +41,7 @@ function loginSuccess(userData) {
         document.getElementById('nav-manage').classList.add('d-none');
     }
 
-    if (userData.role === "SuperAdmin") {
+    if (userData.role === "SuperAdmin" || userData.role === "Admin") {
         document.getElementById('nav-users').classList.remove('d-none');
     } else {
         document.getElementById('nav-users').classList.add('d-none');
