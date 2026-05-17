@@ -220,9 +220,26 @@ async function loadNurseMonthView() {
 
     try {
         const [year, month] = monthStr.split('-').map(Number);
-        const shifts = await apiCall('getNurseShifts', { userId, month: month - 1, year });
+        
+        // Fetch both selected nurse's shifts AND all shifts for context summary
+        const [shifts, allShifts] = await Promise.all([
+            apiCall('getNurseShifts', { userId, month: month - 1, year }),
+            apiCall('getMonthShifts', { month: month - 1, year })
+        ]);
+
         const shiftMap = {};
         shifts.forEach(s => { shiftMap[s.date] = s.shift; });
+
+        // Group all shifts by date and type for the summary
+        const dailySummary = {};
+        allShifts.forEach(s => {
+            if (!dailySummary[s.date]) {
+                dailySummary[s.date] = { 'เช้า': 0, 'บ่าย': 0, 'ดึก': 0 };
+            }
+            if (dailySummary[s.date][s.shift] !== undefined) {
+                dailySummary[s.date][s.shift]++;
+            }
+        });
 
         const daysInMonth = new Date(year, month, 0).getDate();
         area.innerHTML = '';
@@ -230,22 +247,32 @@ async function loadNurseMonthView() {
         for (let d = 1; d <= daysInMonth; d++) {
             const dateStr = `${year}-${String(month).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
             const currentShift = shiftMap[dateStr] || null;
+            const summary = dailySummary[dateStr] || { 'เช้า': 0, 'บ่าย': 0, 'ดึก': 0 };
+            
             const item = document.createElement('div');
-            item.className = 'list-group-item p-2 bg-white border-0 border-bottom d-flex justify-content-between align-items-center';
+            item.className = 'list-group-item p-2 bg-white border-0 border-bottom';
             
             const badgeHtml = getShiftBadge(`nurse-${d}`, currentShift);
             const dateLabel = new Date(dateStr).toLocaleDateString('th-TH', { day: 'numeric', month: 'short' });
 
             item.innerHTML = `
-                <div>
-                    <span class="fw-bold small text-dark">${dateLabel}</span>
-                    ${badgeHtml.replace(`id="status-nurse-${d}"`, `id="nurse-date-${dateStr}"`)}
+                <div class="d-flex justify-content-between align-items-center mb-1">
+                    <div>
+                        <span class="fw-bold small text-dark">${dateLabel}</span>
+                        ${badgeHtml.replace(`id="status-nurse-${d}"`, `id="nurse-date-${dateStr}"`)}
+                    </div>
+                    <div class="btn-group btn-group-sm shadow-sm">
+                        <button class="btn btn-outline-warning text-dark fw-bold" onclick="quickNurseAction('${userId}', '${dateStr}', 'เช้า')">เช้า</button>
+                        <button class="btn btn-outline-danger fw-bold" onclick="quickNurseAction('${userId}', '${dateStr}', 'บ่าย')">บ่าย</button>
+                        <button class="btn btn-outline-secondary fw-bold" onclick="quickNurseAction('${userId}', '${dateStr}', 'ดึก')">ดึก</button>
+                        <button class="btn btn-outline-dark" onclick="quickNurseAction('${userId}', '${dateStr}', null)"><i class="fa-solid fa-xmark"></i></button>
+                    </div>
                 </div>
-                <div class="btn-group btn-group-sm shadow-sm">
-                    <button class="btn btn-outline-warning text-dark fw-bold" onclick="quickNurseAction('${userId}', '${dateStr}', 'เช้า')">เช้า</button>
-                    <button class="btn btn-outline-danger fw-bold" onclick="quickNurseAction('${userId}', '${dateStr}', 'บ่าย')">บ่าย</button>
-                    <button class="btn btn-outline-secondary fw-bold" onclick="quickNurseAction('${userId}', '${dateStr}', 'ดึก')">ดึก</button>
-                    <button class="btn btn-outline-dark" onclick="quickNurseAction('${userId}', '${dateStr}', null)"><i class="fa-solid fa-xmark"></i></button>
+                <div class="d-flex gap-2 text-muted" style="font-size: 10px; padding-left: 2px;">
+                    <span class="badge rounded-pill bg-light text-dark border-0" style="font-weight: normal; font-size: 9px;">เช้า(${summary['เช้า']})</span>
+                    <span class="badge rounded-pill bg-light text-dark border-0" style="font-weight: normal; font-size: 9px;">บ่าย(${summary['บ่าย']})</span>
+                    <span class="badge rounded-pill bg-light text-dark border-0" style="font-weight: normal; font-size: 9px;">ดึก(${summary['ดึก']})</span>
+                    <span class="ms-auto fst-italic text-secondary" style="font-size: 9px;">รวมคนในกะ</span>
                 </div>
             `;
             area.appendChild(item);

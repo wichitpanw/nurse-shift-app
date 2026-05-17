@@ -249,6 +249,18 @@ const gas = {
         return shifts ? shifts.map(s => ({ id: s.Schedule_ID, date: s.Date, shift: s.Shift })) : [];
     },
 
+    getMonthShifts: async (data) => {
+        const { month, year } = data;
+        const start = `${year}-${String(month + 1).padStart(2, '0')}-01`;
+        const end = `${year}-${String(month + 1).padStart(2, '0')}-31`;
+        const { data: shifts } = await supabaseClient
+            .from('schedules')
+            .select('Schedule_ID, User_ID, Date, Shift, profiles(Name)')
+            .gte('Date', start)
+            .lte('Date', end);
+        return shifts || [];
+    },
+
     // ⚡ USER MANAGEMENT
     getManageUsersList: async () => {
         const { data, error } = await supabaseClient
