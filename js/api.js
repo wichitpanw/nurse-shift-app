@@ -4,21 +4,41 @@ const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZ
 const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
 const gas = {
-    // ⚡ LOGIN
+    // ⚡ LOGIN (Improved: No more 406 error on wrong password)
     checkLogin: async (email, password) => {
         let uEmail = email, uPass = password;
         if (typeof email === 'object' && email !== null) { uEmail = email.email; uPass = email.password; }
-        const { data: user, error } = await supabaseClient.from('profiles').select('*').eq('Email', uEmail).eq('Password', uPass).single();
-        if (error || !user) return { success: false, message: 'อีเมล หรือ รหัสผ่านไม่ถูกต้องค่ะ' };
-        return { success: true, id: user.User_ID, name: user.Name, role: user.Role, email: user.Email, dept: user.Department };
+        
+        const { data, error } = await supabaseClient
+            .from('profiles')
+            .select('*')
+            .eq('Email', uEmail)
+            .eq('Password', uPass);
+
+        if (error || !data || data.length === 0) return { success: false, message: 'อีเมล หรือ รหัสผ่านไม่ถูกต้องค่ะ' };
+        
+        const user = data[0];
+        return { 
+            success: true, 
+            id: user.User_ID, 
+            name: user.Name, 
+            role: user.Role, 
+            email: user.Email, 
+            dept: user.Department 
+        };
     },
 
     // ⚡ CALENDAR
     getCalendarEvents: async () => {
-        const { data, error } = await supabaseClient.from('schedules').select('Schedule_ID, Date, Shift, profiles(Name, User_ID)');
+        const { data, error } = await supabaseClient
+            .from('schedules')
+            .select('Schedule_ID, Date, Shift, profiles(Name, User_ID)');
+        
         if (error) return [];
         return data.map(s => ({
-            id: s.Schedule_ID, title: `${s.profiles.Name} (${s.Shift})`, start: s.Date,
+            id: s.Schedule_ID, 
+            title: `${s.profiles.Name} (${s.Shift})`, 
+            start: s.Date,
             backgroundColor: s.Shift === 'เช้า' ? '#ffc107' : (s.Shift === 'บ่าย' ? '#fd7e14' : '#6f42c1'),
             borderColor: s.Shift === 'เช้า' ? '#ffc107' : (s.Shift === 'บ่าย' ? '#fd7e14' : '#6f42c1'),
             extendedProps: { userId: s.profiles.User_ID, nurseName: s.profiles.Name, shift: s.Shift }
@@ -28,18 +48,33 @@ const gas = {
     // ⚡ MANAGEMENT
     getManagementData: async (data) => {
         const targetDate = typeof data === 'object' ? data.date : data;
-        const { data: nurses } = await supabaseClient.from('profiles').select('User_ID, Name, Department, Role').not('Role', 'in', '("SuperAdmin","Admin")').eq('Status', 'Active');
-        const { data: shifts } = await supabaseClient.from('schedules').select('User_ID, Shift').eq('Date', targetDate);
+        const { data: nurses } = await supabaseClient
+            .from('profiles')
+            .select('User_ID, Name, Department, Role')
+            .not('Role', 'in', '("SuperAdmin","Admin")')
+            .eq('Status', 'Active');
+        
+        const { data: shifts } = await supabaseClient
+            .from('schedules')
+            .select('User_ID, Shift')
+            .eq('Date', targetDate);
+        
         const shiftMap = {};
         shifts?.forEach(s => { shiftMap[s.User_ID] = s.Shift; });
-        return { nurses: nurses ? nurses.map(n => ({ id: n.User_ID, name: n.Name, dept: n.Department })) : [], shifts: shiftMap };
+        return { 
+            nurses: nurses ? nurses.map(n => ({ id: n.User_ID, name: n.Name, dept: n.Department })) : [], 
+            shifts: shiftMap 
+        };
     },
 
     saveShift: async (userId, date, shift) => {
         let uId = userId, uDate = date, uShift = shift;
         if (typeof userId === 'object') { uId = userId.userId; uDate = userId.date; uShift = userId.shift; }
+        
         await supabaseClient.from('schedules').delete().eq('User_ID', uId).eq('Date', uDate);
-        const { error } = await supabaseClient.from('schedules').insert([{ "Schedule_ID": "SCH-" + new Date().getTime(), "User_ID": uId, "Date": uDate, "Shift": uShift, "Status": "Confirmed" }]);
+        const { error } = await supabaseClient.from('schedules').insert([
+            { "Schedule_ID": "SCH-" + new Date().getTime(), "User_ID": uId, "Date": uDate, "Shift": uShift, "Status": "Confirmed" }
+        ]);
         return { success: !error };
     },
 
@@ -54,8 +89,17 @@ const gas = {
         const uEmail = typeof email === 'object' ? email.userEmail : email;
         const { data: me } = await supabaseClient.from('profiles').select('User_ID').eq('Email', uEmail).single();
         if (!me) return [];
-        const { data: incoming } = await supabaseClient.from('swaps').select('Swap_ID, Status, schedules(Date, Shift), profiles!Requester_ID(Name)').eq('Owner_ID', me.User_ID).eq('Status', 'Pending');
-        return incoming ? incoming.map(s => ({ swapId: s.Swap_ID, requesterName: s.profiles.Name, date: s.schedules.Date, shift: s.schedules.Shift })) : [];
+        const { data: incoming } = await supabaseClient
+            .from('swaps')
+            .select('Swap_ID, Status, schedules(Date, Shift), profiles!Requester_ID(Name)')
+            .eq('Owner_ID', me.User_ID)
+            .eq('Status', 'Pending');
+        return incoming ? incoming.map(s => ({ 
+            swapId: s.Swap_ID, 
+            requesterName: s.profiles.Name, 
+            date: s.schedules.Date, 
+            shift: s.schedules.Shift 
+        })) : [];
     },
 
     // ⚡ SWAPS
@@ -64,7 +108,10 @@ const gas = {
         if (typeof scheduleId === 'object') { sId = scheduleId.scheduleId; oId = scheduleId.ownerId; rEmail = scheduleId.requesterEmail; }
         const { data: reqUser } = await supabaseClient.from('profiles').select('User_ID').eq('Email', rEmail).single();
         if (!reqUser || reqUser.User_ID === oId) return { success: false, message: 'ไม่ต้องแลกกับตัวเองน้า' };
-        const { error } = await supabaseClient.from('swaps').insert([{ "Swap_ID": "SWAP-" + new Date().getTime(), "Schedule_ID": sId, "Requester_ID": reqUser.User_ID, "Owner_ID": oId, "Status": "Pending" }]);
+        
+        const { error } = await supabaseClient.from('swaps').insert([
+            { "Swap_ID": "SWAP-" + new Date().getTime(), "Schedule_ID": sId, "Requester_ID": reqUser.User_ID, "Owner_ID": oId, "Status": "Pending" }
+        ]);
         return { success: !error, message: error ? error.message : 'ส่งคำขอสำเร็จแล้วค่ะ' };
     },
 
@@ -72,8 +119,10 @@ const gas = {
         const email = typeof params === 'object' ? params.userEmail : params;
         const { data: me } = await supabaseClient.from('profiles').select('User_ID').eq('Email', email).single();
         if (!me) return { incoming: [], outgoing: [] };
+        
         const { data: incoming } = await supabaseClient.from('swaps').select('Swap_ID, Status, schedules(Date, Shift), profiles!Requester_ID(Name)').eq('Owner_ID', me.User_ID);
         const { data: outgoing } = await supabaseClient.from('swaps').select('Swap_ID, Status, schedules(Date, Shift), profiles!Owner_ID(Name)').eq('Requester_ID', me.User_ID);
+        
         return {
             incoming: incoming ? incoming.map(s => ({ swapId: s.Swap_ID, status: s.Status, otherName: s.profiles.Name, date: s.schedules.Date, shift: s.schedules.Shift })) : [],
             outgoing: outgoing ? outgoing.map(s => ({ swapId: s.Swap_ID, status: s.Status, otherName: s.profiles.Name, date: s.schedules.Date, shift: s.schedules.Shift })) : []
@@ -108,7 +157,11 @@ const gas = {
     },
 
     getAllNurses: async () => {
-        const { data } = await supabaseClient.from('profiles').select('User_ID, Name').eq('Status', 'Active').not('Role', 'in', '("SuperAdmin","Admin")');
+        const { data } = await supabaseClient
+            .from('profiles')
+            .select('User_ID, Name')
+            .eq('Status', 'Active')
+            .not('Role', 'in', '("SuperAdmin","Admin")');
         return data ? data.map(n => ({ id: n.User_ID, name: n.Name })) : [];
     },
 
@@ -126,7 +179,11 @@ const gas = {
     getMonthShifts: async (data) => {
         const start = `${data.year}-${String(data.month + 1).padStart(2, '0')}-01`, end = `${data.year}-${String(data.month + 1).padStart(2, '0')}-31`;
         // ⚡ Get shifts WITH nurse names for context
-        const { data: shifts } = await supabaseClient.from('schedules').select('User_ID, Date, Shift, profiles(Name)').gte('Date', start).lte('Date', end);
+        const { data: shifts } = await supabaseClient
+            .from('schedules')
+            .select('User_ID, Date, Shift, profiles(Name)')
+            .gte('Date', start)
+            .lte('Date', end);
         return shifts || [];
     },
 
