@@ -1,3 +1,6 @@
+// --- Session Configuration ---
+const SESSION_TIMEOUT_HOURS = 12; // ระบบจะ Logout อัตโนมัติหลังผ่านไป 12 ชั่วโมง
+
 function showPage(pageId) {
     var sections = document.querySelectorAll('.page-section');
     sections.forEach(function (section) {
@@ -31,6 +34,9 @@ function navigateTo(pageId, element) {
 }
 
 function loginSuccess(userData) {
+    // ⚡ บันทึกเวลาที่ Login เข้ามาด้วย
+    userData.loginTimestamp = new Date().getTime();
+    
     localStorage.setItem('currentUser', JSON.stringify(userData));
     document.getElementById('app-nav').classList.remove('d-none');
 
@@ -67,9 +73,20 @@ function executeLogout() {
 
 // Auto-login if session exists
 window.onload = function() {
-    const savedUser = localStorage.getItem('currentUser');
-    if (savedUser) {
-        loginSuccess(JSON.parse(savedUser));
+    const savedUserStr = localStorage.getItem('currentUser');
+    if (savedUserStr) {
+        const userData = JSON.parse(savedUserStr);
+        const now = new Date().getTime();
+        const sessionAgeHours = (now - (userData.loginTimestamp || 0)) / (1000 * 60 * 60);
+
+        // ⚡ ตรวจสอบว่า Session หมดอายุหรือยัง
+        if (sessionAgeHours > SESSION_TIMEOUT_HOURS) {
+            console.warn('Session expired. Logging out...');
+            localStorage.removeItem('currentUser');
+            // ไม่ต้องทำอะไรต่อ ปล่อยให้อยู่หน้า Login
+        } else {
+            loginSuccess(userData);
+        }
     }
 
     // Periodic check for new swap requests
