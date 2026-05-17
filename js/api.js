@@ -224,6 +224,51 @@ const gas = {
         const uId = typeof data === 'object' ? data.userId : data;
         const { data: shifts } = await supabaseClient.from('schedules').select('Schedule_ID, Date, Shift').eq('User_ID', uId);
         return shifts ? shifts.map(s => ({ id: s.Schedule_ID, date: s.Date, shift: s.Shift })) : [];
+    },
+
+    // ⚡ USER MANAGEMENT
+    getManageUsersList: async () => {
+        const { data, error } = await supabaseClient
+            .from('profiles')
+            .select('*');
+        if (error) return [];
+        return data.map(u => ({
+            id: u.User_ID,
+            name: u.Name,
+            email: u.Email,
+            password: u.Password,
+            role: u.Role,
+            dept: u.Department,
+            status: u.Status
+        }));
+    },
+
+    saveUser: async (userData) => {
+        const userId = userData.id || ("USR-" + new Date().getTime());
+        const payload = {
+            "User_ID": userId,
+            "Name": userData.name,
+            "Email": userData.email,
+            "Password": userData.password,
+            "Role": userData.role,
+            "Department": userData.dept,
+            "Status": userData.status
+        };
+
+        const { error } = await supabaseClient
+            .from('profiles')
+            .upsert(payload, { onConflict: 'User_ID' });
+
+        return { success: !error, message: error ? error.message : 'บันทึกสำเร็จค่ะ' };
+    },
+
+    deleteUser: async (userId) => {
+        const uId = typeof userId === 'object' ? userId.userId : userId;
+        const { error } = await supabaseClient
+            .from('profiles')
+            .delete()
+            .eq('User_ID', uId);
+        return { success: !error, message: error ? error.message : 'ลบข้อมูลสำเร็จค่ะ' };
     }
 };
 
