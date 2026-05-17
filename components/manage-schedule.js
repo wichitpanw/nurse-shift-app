@@ -236,7 +236,7 @@ async function loadNurseMonthView() {
         const shiftMap = {};
         shifts.forEach(s => { shiftMap[s.date] = s.shift; });
 
-        // Group all shifts by date and type for the summary (NOW WITH NAMES)
+        // Group all shifts by date and type for the summary
         const dailySummary = {};
         allShifts.forEach(s => {
             if (!dailySummary[s.Date]) {
@@ -256,7 +256,9 @@ async function loadNurseMonthView() {
             const summary = dailySummary[dateStr] || { 'เช้า': [], 'บ่าย': [], 'ดึก': [] };
             
             const item = document.createElement('div');
-            item.className = 'list-group-item p-2 bg-white border-0 border-bottom';
+            // ⚡ Highlight row if the nurse has a shift
+            const highlightClass = currentShift ? 'border-start border-4 border-primary bg-primary-subtle' : '';
+            item.className = `list-group-item p-2 bg-white border-0 border-bottom ${highlightClass}`;
             
             const badgeHtml = getShiftBadge(`nurse-${d}`, currentShift);
             const dateLabel = new Date(dateStr).toLocaleDateString('th-TH', { day: 'numeric', month: 'short' });
@@ -299,14 +301,18 @@ async function quickNurseAction(userId, date, shift) {
             
         if (res.success) {
             // ⚡ Update local cache to reflect changes immediately
-            cachedMonthData.key = null; // Reset cache so next nurse load gets fresh context
+            cachedMonthData.key = null; 
 
-            if (!shift) { label.className = 'badge bg-light text-muted border p-1'; label.innerText = 'ยังไม่มีเวร'; label.style.backgroundColor = ''; }
+            if (!shift) { 
+                label.className = 'badge bg-light text-muted border p-1'; label.innerText = 'ยังไม่มีเวร'; label.style.backgroundColor = ''; 
+                label.closest('.list-group-item').classList.remove('bg-primary-subtle', 'border-start', 'border-4', 'border-primary');
+            }
             else {
                 const config = { 'เช้า': 'bg-warning text-dark', 'บ่าย': 'bg-danger text-white', 'ดึก': 'text-white' };
                 label.className = 'badge ' + config[shift] + ' p-1';
                 label.innerText = 'เวร' + shift;
                 label.style.backgroundColor = shift === 'ดึก' ? '#6f42c1' : '';
+                label.closest('.list-group-item').classList.add('bg-primary-subtle', 'border-start', 'border-4', 'border-primary');
             }
         }
     } catch (e) { console.error(e); }

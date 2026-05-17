@@ -27,7 +27,7 @@
                                 <option value="User">User (ดูเวรตัวเอง)</option>
                                 <option value="SuperUser">SuperUser (ร่างเวรได้)</option>
                                 <option value="Admin">Admin (จัดเวรได้)</option>
-                                <option value="SuperAdmin">SuperAdmin (สิทธิ์สูงสุด)</option>
+                                <!-- SuperAdmin option will be added dynamically if requester is SuperAdmin -->
                             </select>
                         </div>
                         <div class="col-6 mb-2">
@@ -65,6 +65,16 @@
     `;
 
     document.getElementById('page-users').innerHTML = manageUsersHtml;
+
+    // ⚡ Dynamically adjust role options based on current user
+    const savedUser = JSON.parse(localStorage.getItem('currentUser'));
+    if (savedUser && savedUser.role === 'SuperAdmin') {
+        const roleSelect = document.getElementById('userRole');
+        const opt = document.createElement('option');
+        opt.value = 'SuperAdmin';
+        opt.text = 'SuperAdmin (สิทธิ์สูงสุด)';
+        roleSelect.add(opt);
+    }
 })();
 
 async function loadManageUsers() {
@@ -95,7 +105,6 @@ async function loadManageUsers() {
                 </div>`;
             area.appendChild(item);
             
-            // Add click listener to the edit button to avoid JSON stringify escaping issues
             document.getElementById(`edit-btn-${u.id}`).addEventListener('click', function() {
                 editUserField(u);
             });
@@ -122,13 +131,18 @@ async function handleSaveUser(event) {
 
     try {
         const res = await apiCall('saveUser', userData);
-        alert(res.message || 'บันทึกสำเร็จ');
+        Swal.fire({
+            icon: 'success',
+            title: res.message || 'บันทึกสำเร็จ',
+            timer: 1500,
+            showConfirmButton: false
+        });
         btn.disabled = false;
         resetUserForm();
         loadManageUsers();
         if (typeof loadNursesForManage === 'function') loadNursesForManage();
     } catch (error) {
-        alert('บันทึกไม่สำเร็จ: ' + error.message);
+        Swal.fire('บันทึกไม่สำเร็จ', error.message, 'error');
         btn.disabled = false;
     }
 }
@@ -149,13 +163,24 @@ function editUserField(u) {
 }
 
 async function handleDeleteUser(userId) {
-    if (confirm('คุณต้องการปิดการใช้งานและลบบุคคลากรท่านนี้ออกจากระบบใช่หรือไม่คะ?')) {
+    const result = await Swal.fire({
+        title: 'ยืนยันการลบ',
+        text: 'คุณต้องการปิดการใช้งานและลบบุคคลากรท่านนี้ออกจากระบบใช่หรือไม่คะ?',
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonColor: '#d33',
+        cancelButtonColor: '#3085d6',
+        confirmButtonText: 'ตกลง, ลบเลย!',
+        cancelButtonText: 'ยกเลิก'
+    });
+
+    if (result.isConfirmed) {
         try {
             const res = await apiCall('deleteUser', { userId: userId });
-            alert(res.message || 'ลบสำเร็จ');
+            Swal.fire('ลบสำเร็จ', res.message, 'success');
             loadManageUsers();
         } catch (error) {
-            alert('ลบไม่สำเร็จ: ' + error.message);
+            Swal.fire('ลบไม่สำเร็จ', error.message, 'error');
         }
     }
 }
