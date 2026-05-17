@@ -236,14 +236,14 @@ async function loadNurseMonthView() {
         const shiftMap = {};
         shifts.forEach(s => { shiftMap[s.date] = s.shift; });
 
-        // Group all shifts by date and type for the summary
+        // Group all shifts by date and type for the summary (NOW WITH NAMES)
         const dailySummary = {};
         allShifts.forEach(s => {
             if (!dailySummary[s.Date]) {
-                dailySummary[s.Date] = { 'เช้า': 0, 'บ่าย': 0, 'ดึก': 0 };
+                dailySummary[s.Date] = { 'เช้า': [], 'บ่าย': [], 'ดึก': [] };
             }
-            if (dailySummary[s.Date][s.Shift] !== undefined) {
-                dailySummary[s.Date][s.Shift]++;
+            if (dailySummary[s.Date][s.Shift]) {
+                dailySummary[s.Date][s.Shift].push(s.profiles.Name);
             }
         });
 
@@ -253,7 +253,7 @@ async function loadNurseMonthView() {
         for (let d = 1; d <= daysInMonth; d++) {
             const dateStr = `${year}-${String(month).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
             const currentShift = shiftMap[dateStr] || null;
-            const summary = dailySummary[dateStr] || { 'เช้า': 0, 'บ่าย': 0, 'ดึก': 0 };
+            const summary = dailySummary[dateStr] || { 'เช้า': [], 'บ่าย': [], 'ดึก': [] };
             
             const item = document.createElement('div');
             item.className = 'list-group-item p-2 bg-white border-0 border-bottom';
@@ -274,16 +274,18 @@ async function loadNurseMonthView() {
                         <button class="btn btn-outline-dark" onclick="quickNurseAction('${userId}', '${dateStr}', null)"><i class="fa-solid fa-xmark"></i></button>
                     </div>
                 </div>
-                <div class="d-flex gap-2 text-muted" style="font-size: 10px; padding-left: 2px;">
-                    <span class="badge rounded-pill bg-light text-dark border-0" style="font-weight: normal; font-size: 9px;">เช้า(${summary['เช้า']})</span>
-                    <span class="badge rounded-pill bg-light text-dark border-0" style="font-weight: normal; font-size: 9px;">บ่าย(${summary['บ่าย']})</span>
-                    <span class="badge rounded-pill bg-light text-dark border-0" style="font-weight: normal; font-size: 9px;">ดึก(${summary['ดึก']})</span>
-                    <span class="ms-auto fst-italic text-secondary" style="font-size: 9px;">รวมคนในกะ</span>
+                <div class="text-muted" style="font-size: 9px; padding-left: 2px;">
+                    <div class="mb-1"><span class="fw-bold text-warning">เช้า:</span> ${summary['เช้า'].join(', ') || '-'}</div>
+                    <div class="mb-1"><span class="fw-bold text-danger">บ่าย:</span> ${summary['บ่าย'].join(', ') || '-'}</div>
+                    <div class="mb-1"><span class="fw-bold text-purple" style="color: #6f42c1;">ดึก:</span> ${summary['ดึก'].join(', ') || '-'}</div>
                 </div>
             `;
             area.appendChild(item);
         }
-    } catch (e) { area.innerHTML = '<div class="text-center py-5 text-danger bg-white">Error: ' + e.message + '</div>'; }
+    } catch (e) { 
+        console.error(e);
+        area.innerHTML = '<div class="text-center py-5 text-danger bg-white">Error: ' + e.message + '</div>'; 
+    }
 }
 
 async function quickNurseAction(userId, date, shift) {
@@ -297,14 +299,7 @@ async function quickNurseAction(userId, date, shift) {
             
         if (res.success) {
             // ⚡ Update local cache to reflect changes immediately
-            if (cachedMonthData.key) {
-                const yearMonth = date.substring(0, 7);
-                if (cachedMonthData.key === yearMonth.replace('-0','-').replace('-', '-')) {
-                    // This is complex to update correctly without a re-fetch, but for now we re-fetch context if needed
-                    // Or just clear cache
-                    cachedMonthData.key = null; 
-                }
-            }
+            cachedMonthData.key = null; // Reset cache so next nurse load gets fresh context
 
             if (!shift) { label.className = 'badge bg-light text-muted border p-1'; label.innerText = 'ยังไม่มีเวร'; label.style.backgroundColor = ''; }
             else {
@@ -346,8 +341,7 @@ function updateBadge(userId, shift) {
     if (!shift) { label.className = 'badge bg-light text-muted border p-1'; label.innerText = 'ยังไม่มีเวร'; label.style.backgroundColor = ''; }
     else {
         const config = { 'เช้า': 'bg-warning text-dark', 'บ่าย': 'bg-danger text-white', 'ดึก': 'text-white' };
-        label.className = 'badge ' + config[shift] + ' p-1';
-        label.innerText = 'เวร' + shift;
+        label.className = 'badge ' + config[shift] + ' p-1'; label.innerText = 'เวร' + shift;
         label.style.backgroundColor = shift === 'ดึก' ? '#6f42c1' : '';
     }
 }

@@ -28,18 +28,8 @@ const gas = {
     // ⚡ MANAGEMENT
     getManagementData: async (data) => {
         const targetDate = typeof data === 'object' ? data.date : data;
-        // ⚡ Exclude IT/System Admins (SuperAdmin & Admin) from shift management
-        const { data: nurses } = await supabaseClient
-            .from('profiles')
-            .select('User_ID, Name, Department, Role')
-            .not('Role', 'in', '("SuperAdmin","Admin")')
-            .eq('Status', 'Active');
-        
-        const { data: shifts } = await supabaseClient
-            .from('schedules')
-            .select('User_ID, Shift')
-            .eq('Date', targetDate);
-        
+        const { data: nurses } = await supabaseClient.from('profiles').select('User_ID, Name, Department, Role').not('Role', 'in', '("SuperAdmin","Admin")').eq('Status', 'Active');
+        const { data: shifts } = await supabaseClient.from('schedules').select('User_ID, Shift').eq('Date', targetDate);
         const shiftMap = {};
         shifts?.forEach(s => { shiftMap[s.User_ID] = s.Shift; });
         return { nurses: nurses ? nurses.map(n => ({ id: n.User_ID, name: n.Name, dept: n.Department })) : [], shifts: shiftMap };
@@ -109,11 +99,7 @@ const gas = {
     getShiftSummary: async (data) => {
         const { month, year } = data;
         const start = `${year}-${String(month + 1).padStart(2, '0')}-01`, end = `${year}-${String(month + 1).padStart(2, '0')}-31`;
-        // ⚡ Exclude IT/System Admins from summary
-        const { data: nurses } = await supabaseClient
-            .from('profiles')
-            .select('User_ID, Name')
-            .not('Role', 'in', '("SuperAdmin","Admin")');
+        const { data: nurses } = await supabaseClient.from('profiles').select('User_ID, Name').not('Role', 'in', '("SuperAdmin","Admin")');
         const { data: shifts } = await supabaseClient.from('schedules').select('User_ID, Shift').gte('Date', start).lte('Date', end);
         const summaryMap = {};
         nurses?.forEach(n => { summaryMap[n.User_ID] = { id: n.User_ID, name: n.Name, total: 0, morning: 0, afternoon: 0, night: 0 }; });
@@ -122,12 +108,7 @@ const gas = {
     },
 
     getAllNurses: async () => {
-        // ⚡ Exclude IT/System Admins
-        const { data } = await supabaseClient
-            .from('profiles')
-            .select('User_ID, Name')
-            .eq('Status', 'Active')
-            .not('Role', 'in', '("SuperAdmin","Admin")');
+        const { data } = await supabaseClient.from('profiles').select('User_ID, Name').eq('Status', 'Active').not('Role', 'in', '("SuperAdmin","Admin")');
         return data ? data.map(n => ({ id: n.User_ID, name: n.Name })) : [];
     },
 
@@ -144,18 +125,15 @@ const gas = {
 
     getMonthShifts: async (data) => {
         const start = `${data.year}-${String(data.month + 1).padStart(2, '0')}-01`, end = `${data.year}-${String(data.month + 1).padStart(2, '0')}-31`;
-        const { data: shifts } = await supabaseClient.from('schedules').select('User_ID, Date, Shift').gte('Date', start).lte('Date', end);
+        // ⚡ Get shifts WITH nurse names for context
+        const { data: shifts } = await supabaseClient.from('schedules').select('User_ID, Date, Shift, profiles(Name)').gte('Date', start).lte('Date', end);
         return shifts || [];
     },
 
-    // ⚡ USER MANAGEMENT (Filtered for Admin)
     getManageUsersList: async (data) => {
         const { requesterRole } = data;
         let query = supabaseClient.from('profiles').select('*');
-        // ⚡ Admin sees everyone EXCEPT SuperAdmin
-        if (requesterRole === 'Admin') {
-            query = query.not('Role', 'eq', 'SuperAdmin');
-        }
+        if (requesterRole === 'Admin') { query = query.not('Role', 'eq', 'SuperAdmin'); }
         const { data: users } = await query;
         return users?.map(u => ({ id: u.User_ID, name: u.Name, email: u.Email, password: u.Password, role: u.Role, dept: u.Department, status: u.Status })) || [];
     },
