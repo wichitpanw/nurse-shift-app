@@ -77,7 +77,7 @@ async function handleLoginSubmit(event) {
     alertMsg.classList.add('d-none');
 
     try {
-        const response = await gas.checkLogin(email, password);
+        const response = await apiCall('checkLogin', { email: email, password: password });
         if (response.success) {
             btn.innerText = 'เข้าสู่ระบบสำเร็จ';
             currentUserData = response;

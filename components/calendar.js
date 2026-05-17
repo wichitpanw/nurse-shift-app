@@ -130,7 +130,7 @@ async function initCalendar() {
     calendar.render();
 
     try {
-        const events = await gas.getCalendarEvents();
+        const events = await apiCall('getCalendarEvents');
         calendar.addEventSource(events);
     } catch (error) {
         console.error('Error loading events:', error);
@@ -156,7 +156,11 @@ async function submitSwapRequest() {
     var modalInstance = bootstrap.Modal.getInstance(modalEl);
 
     try {
-        const res = await gas.createSwapRequest(selectedEventData.scheduleId, selectedEventData.ownerId, globalUserData.email);
+        const res = await apiCall('createSwapRequest', {
+            scheduleId: selectedEventData.scheduleId,
+            ownerId: selectedEventData.ownerId,
+            requesterEmail: globalUserData.email
+        });
         if (modalInstance) modalInstance.hide();
         btn.disabled = false;
         btn.innerText = 'ส่งคำขอ';
@@ -174,7 +178,7 @@ async function checkIncomingSwapRequests() {
     if (!alertArea) return;
 
     try {
-        const requests = await gas.getMyPendingSwaps(globalUserData.email);
+        const requests = await apiCall('getMyPendingSwaps', { userEmail: globalUserData.email });
         alertArea.innerHTML = '';
         if (requests && requests.length > 0) {
             requests.forEach(function (req) {
@@ -210,7 +214,7 @@ async function executeApproveSwap() {
     btn.disabled = true;
 
     try {
-        const res = await gas.approveSwap(pendingApproveSwapId);
+        const res = await apiCall('approveSwap', { swapId: pendingApproveSwapId });
         btn.disabled = false;
         showResult(res.success ? 'สำเร็จ' : 'ขออภัย', res.message, res.success);
         checkIncomingSwapRequests();

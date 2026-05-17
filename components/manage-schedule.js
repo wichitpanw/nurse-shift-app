@@ -259,8 +259,8 @@ async function quickNurseAction(userId, date, shift) {
 
     try {
         const res = shift 
-            ? await gas.saveShift(userId, date, shift)
-            : await gas.deleteShift(userId, date);
+            ? await apiCall('saveShift', { userId, date, shift })
+            : await apiCall('deleteShift', { userId, date });
             
         if (res.success) {
             if (!shift) { label.className = 'badge bg-light text-muted border p-1'; label.innerText = 'ยังไม่มีเวร'; label.style.backgroundColor = ''; }
@@ -285,7 +285,10 @@ async function quickAction(userId, type, shift) {
     const targetDate = document.getElementById('targetDate').value;
     if (statusLabel) { statusLabel.className = 'badge bg-info text-white p-1'; statusLabel.innerText = 'บันทึก...'; }
     try {
-        const res = type === 'save' ? await gas.saveShift(userId, targetDate, shift) : await gas.deleteShift(userId, targetDate);
+        const res = type === 'save' 
+            ? await apiCall('saveShift', { userId, date: targetDate, shift }) 
+            : await apiCall('deleteShift', { userId, date: targetDate });
+            
         if (res.success) {
             type === 'save' ? (currentShifts[userId] = shift) : (delete currentShifts[userId]);
             updateBadge(userId, type === 'save' ? shift : null);

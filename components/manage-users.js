@@ -73,7 +73,7 @@ async function loadManageUsers() {
     area.innerHTML = '<div class="text-center py-4"><div class="spinner-border text-primary spinner-border-sm"></div></div>';
 
     try {
-        const users = await gas.getManageUsersList();
+        const users = await apiCall('getManageUsersList');
         area.innerHTML = '';
         users.forEach(function (u) {
             var item = document.createElement('div');
@@ -110,7 +110,6 @@ async function handleSaveUser(event) {
     btn.disabled = true;
 
     var userData = {
-        action: 'saveUser',
         id: document.getElementById('userIdInput').value,
         name: document.getElementById('userName').value,
         email: document.getElementById('userEmail').value,
@@ -121,7 +120,7 @@ async function handleSaveUser(event) {
     };
 
     try {
-        const res = await gas.saveUser(userData);
+        const res = await apiCall('saveUser', userData);
         alert(res.message || 'บันทึกสำเร็จ');
         btn.disabled = false;
         resetUserForm();
@@ -151,7 +150,7 @@ function editUserField(u) {
 async function handleDeleteUser(userId) {
     if (confirm('คุณต้องการปิดการใช้งานและลบบุคคลากรท่านนี้ออกจากระบบใช่หรือไม่คะ?')) {
         try {
-            const res = await gas.deleteUser(userId);
+            const res = await apiCall('deleteUser', { userId: userId });
             alert(res.message || 'ลบสำเร็จ');
             loadManageUsers();
         } catch (error) {

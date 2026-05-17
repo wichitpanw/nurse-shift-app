@@ -190,10 +190,24 @@ const gas = {
     },
 
     // ⚡ SUMMARY
-    getShiftSummary: async (data) => {
-        const { month, year } = data;
-        const startDate = new Date(year, month, 1).toISOString().split('T')[0];
-        const endDate = new Date(year, month + 1, 0).toISOString().split('T')[0];
+    getShiftSummary: async (month, year) => {
+        // Handle both positional (month, year) and object {month, year}
+        let targetMonth, targetYear;
+        if (typeof month === 'object' && month !== null) {
+            targetMonth = month.month;
+            targetYear = month.year;
+        } else {
+            targetMonth = month;
+            targetYear = year;
+        }
+
+        // Fallbacks for current month if not provided
+        const now = new Date();
+        if (targetMonth === undefined || targetMonth === null) targetMonth = now.getMonth();
+        if (targetYear === undefined || targetYear === null) targetYear = now.getFullYear();
+
+        const startDate = new Date(targetYear, targetMonth, 1).toISOString().split('T')[0];
+        const endDate = new Date(targetYear, targetMonth + 1, 0).toISOString().split('T')[0];
 
         const { data: nurses } = await supabaseClient.from('profiles').select('User_ID, Name').not('Role', 'eq', 'SuperAdmin');
         const { data: shifts } = await supabaseClient.from('schedules').select('User_ID, Shift').gte('Date', startDate).lte('Date', endDate);
@@ -222,7 +236,16 @@ const gas = {
 
     getNurseShifts: async (data) => {
         const uId = typeof data === 'object' ? data.userId : data;
-        const { data: shifts } = await supabaseClient.from('schedules').select('Schedule_ID, Date, Shift').eq('User_ID', uId);
+        let query = supabaseClient.from('schedules').select('Schedule_ID, Date, Shift').eq('User_ID', uId);
+        
+        // Add filtering by month/year if provided
+        if (typeof data === 'object' && data.month !== undefined && data.year !== undefined) {
+            const startDate = new Date(data.year, data.month, 1).toISOString().split('T')[0];
+            const endDate = new Date(data.year, data.month + 1, 0).toISOString().split('T')[0];
+            query = query.gte('Date', startDate).lte('Date', endDate);
+        }
+
+        const { data: shifts } = await query;
         return shifts ? shifts.map(s => ({ id: s.Schedule_ID, date: s.Date, shift: s.Shift })) : [];
     },
 
