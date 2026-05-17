@@ -102,6 +102,26 @@ const gas = {
         return { success: !error };
     },
 
+    // ⚡ MISSING FUNCTION FOR CALENDAR ALERT
+    getMyPendingSwaps: async (email) => {
+        const uEmail = typeof email === 'object' ? email.userEmail : email;
+        const { data: me } = await supabaseClient.from('profiles').select('User_ID').eq('Email', uEmail).single();
+        if (!me) return [];
+
+        const { data: incoming } = await supabaseClient
+            .from('swaps')
+            .select('Swap_ID, Status, schedules(Date, Shift), profiles!Requester_ID(Name)')
+            .eq('Owner_ID', me.User_ID)
+            .eq('Status', 'Pending');
+
+        return incoming ? incoming.map(s => ({
+            swapId: s.Swap_ID,
+            requesterName: s.profiles.Name,
+            date: s.schedules.Date,
+            shift: s.schedules.Shift
+        })) : [];
+    },
+
     // ⚡ SWAPS
     createSwapRequest: async (scheduleId, ownerId, requesterEmail) => {
         // Handle object arg from apiCall
