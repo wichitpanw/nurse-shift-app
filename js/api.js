@@ -4,6 +4,7 @@ const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZ
 const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
 const gas = {
+    // ⚡ LOGIN
     checkLogin: async (data) => {
         const { email, password } = data;
         const { data: user, error } = await supabaseClient
@@ -25,27 +26,29 @@ const gas = {
         };
     },
 
+    // ⚡ CALENDAR
     getCalendarEvents: async () => {
         const { data, error } = await supabaseClient
             .from('schedules')
-            .select('id, shift_date, shift_type, profiles(Name, User_ID)');
+            .select('Schedule_ID, Date, Shift, profiles(Name, User_ID)');
         
         if (error) return [];
 
         return data.map(s => ({
-            id: s.id,
-            title: `${s.profiles.Name} (${s.shift_type})`,
-            start: s.shift_date,
-            backgroundColor: s.shift_type === 'เช้า' ? '#ffc107' : (s.shift_type === 'บ่าย' ? '#fd7e14' : '#6f42c1'),
-            borderColor: s.shift_type === 'เช้า' ? '#ffc107' : (s.shift_type === 'บ่าย' ? '#fd7e14' : '#6f42c1'),
+            id: s.Schedule_ID,
+            title: `${s.profiles.Name} (${s.Shift})`,
+            start: s.Date,
+            backgroundColor: s.Shift === 'เช้า' ? '#ffc107' : (s.Shift === 'บ่าย' ? '#fd7e14' : '#6f42c1'),
+            borderColor: s.Shift === 'เช้า' ? '#ffc107' : (s.Shift === 'บ่าย' ? '#fd7e14' : '#6f42c1'),
             extendedProps: { 
                 userId: s.profiles.User_ID, 
                 nurseName: s.profiles.Name, 
-                shift: s.shift_type
+                shift: s.Shift
             }
         }));
     },
 
+    // ⚡ MANAGEMENT
     getManagementData: async (data) => {
         const { data: nurses } = await supabaseClient
             .from('profiles')
@@ -55,11 +58,11 @@ const gas = {
         
         const { data: shifts } = await supabaseClient
             .from('schedules')
-            .select('user_id, shift_type')
-            .eq('shift_date', data.date);
+            .select('User_ID, Shift')
+            .eq('Date', data.date);
         
         const shiftMap = {};
-        shifts?.forEach(s => { shiftMap[s.user_id] = s.shift_type; });
+        shifts?.forEach(s => { shiftMap[s.User_ID] = s.Shift; });
 
         return { 
             nurses: nurses ? nurses.map(n => ({ id: n.User_ID, name: n.Name, dept: n.Department })) : [], 
@@ -69,25 +72,92 @@ const gas = {
 
     saveShift: async (data) => {
         const { userId, date, shift } = data;
-        await supabaseClient.from('schedules').delete().eq('user_id', userId).eq('shift_date', date);
+        // Delete existing for that person on that day
+        await supabaseClient.from('schedules').delete().eq('User_ID', userId).eq('Date', date);
+        // Insert new with custom Schedule_ID
+        const scheduleId = "SCH-" + new Date().getTime();
         const { error } = await supabaseClient.from('schedules').insert([
-            { user_id: userId, shift_date: date, shift_type: shift }
+            { "Schedule_ID": scheduleId, "User_ID": userId, "Date": date, "Shift": shift, "Status": "Confirmed" }
         ]);
         return { success: !error };
     },
 
     deleteShift: async (data) => {
-        const { error } = await supabaseClient.from('schedules').delete().eq('user_id', data.userId).eq('shift_date', data.date);
+        const { error } = await supabaseClient.from('schedules').delete().eq('User_ID', data.userId).eq('Date', data.date);
         return { success: !error };
     },
 
+    // ⚡ SWAPS
+    createSwapRequest: async (scheduleId, ownerId, requesterEmail) => {
+        const { data: reqUser } = await supabaseClient.from('profiles').select('User_ID').eq('Email', requesterEmail).single();
+        if (reqUser.User_ID === ownerId) return { success: false, message: 'ไม่ต้องแลกกับตัวเองน้า' };
+
+        const swapId = "SWAP-" + new Date().getTime();
+        const { error } = await supabaseClient.from('swaps').insert([
+            { "Swap_ID": swapId, "Schedule_ID": scheduleId, "Requester_ID": reqUser.User_ID, "Owner_ID": ownerId, "Status": "Pending" }
+        ]);
+        return { success: !error, message: error ? error.message : 'ส่งคำขอสำเร็จแล้วค่ะ' };
+    },
+
+    getAllMySwaps: async (params) => {
+        const { userEmail } = params;
+        const { data: me } = await supabaseClient.from('profiles').select('User_ID').eq('Email', userEmail).single();
+        if (!me) return { incoming: [], outgoing: [] };
+
+        const { data: incoming } = await supabaseClient
+            .from('swaps')
+            .select('Swap_ID, Status, schedules(Date, Shift), profiles!Requester_ID(Name)')
+            .eq('Owner_ID', me.User_ID);
+
+        const { data: outgoing } = await supabaseClient
+            .from('swaps')
+            .select('Swap_ID, Status, schedules(Date, Shift), profiles!Owner_ID(Name)')
+            .eq('Requester_ID', me.User_ID);
+
+        return {
+            incoming: incoming ? incoming.map(s => ({
+                swapId: s.Swap_ID,
+                status: s.Status,
+                otherName: s.profiles.Name,
+                date: s.schedules.Date,
+                shift: s.schedules.Shift
+            })) : [],
+            outgoing: outgoing ? outgoing.map(s => ({
+                swapId: s.Swap_ID,
+                status: s.Status,
+                otherName: s.profiles.Name,
+                date: s.schedules.Date,
+                shift: s.schedules.Shift
+            })) : []
+        };
+    },
+
+    approveSwap: async (params) => {
+        const { swapId } = params;
+        const { data: swap } = await supabaseClient.from('swaps').select('*').eq('Swap_ID', swapId).single();
+        if (!swap) return { success: false };
+
+        // Update schedule owner
+        await supabaseClient.from('schedules').update({ "User_ID": swap.Requester_ID }).eq('Schedule_ID', swap.Schedule_ID);
+        // Update swap status
+        await supabaseClient.from('swaps').update({ "Status": 'Approved' }).eq('Swap_ID', swapId);
+        return { success: true, message: 'อนุมัติเรียบร้อยค่ะ' };
+    },
+
+    rejectSwap: async (params) => {
+        const { swapId } = params;
+        const { error } = await supabaseClient.from('swaps').update({ "Status": 'Rejected' }).eq('Swap_ID', swapId);
+        return { success: !error, message: error ? 'พังค่ะ' : 'ปฏิเสธเรียบร้อยค่ะ' };
+    },
+
+    // ⚡ SUMMARY
     getShiftSummary: async (data) => {
         const { month, year } = data;
         const startDate = new Date(year, month, 1).toISOString().split('T')[0];
         const endDate = new Date(year, month + 1, 0).toISOString().split('T')[0];
 
         const { data: nurses } = await supabaseClient.from('profiles').select('User_ID, Name').not('Role', 'eq', 'SuperAdmin');
-        const { data: shifts } = await supabaseClient.from('schedules').select('user_id, shift_type').gte('shift_date', startDate).lte('shift_date', endDate);
+        const { data: shifts } = await supabaseClient.from('schedules').select('User_ID, Shift').gte('Date', startDate).lte('Date', endDate);
 
         const summaryMap = {};
         nurses?.forEach(n => {
@@ -95,11 +165,11 @@ const gas = {
         });
 
         shifts?.forEach(s => {
-            if (summaryMap[s.user_id]) {
-                summaryMap[s.user_id].total++;
-                if (s.shift_type === 'เช้า') summaryMap[s.user_id].morning++;
-                else if (s.shift_type === 'บ่าย') summaryMap[s.user_id].afternoon++;
-                else if (s.shift_type === 'ดึก') summaryMap[s.user_id].night++;
+            if (summaryMap[s.User_ID]) {
+                summaryMap[s.User_ID].total++;
+                if (s.Shift === 'เช้า') summaryMap[s.User_ID].morning++;
+                else if (s.Shift === 'บ่าย') summaryMap[s.User_ID].afternoon++;
+                else if (s.Shift === 'ดึก') summaryMap[s.User_ID].night++;
             }
         });
 
@@ -112,8 +182,8 @@ const gas = {
     },
 
     getNurseShifts: async (data) => {
-        const { data: shifts } = await supabaseClient.from('schedules').select('id, shift_date, shift_type').eq('user_id', data.userId);
-        return shifts ? shifts.map(s => ({ id: s.id, date: s.shift_date, shift: s.shift_type })) : [];
+        const { data: shifts } = await supabaseClient.from('schedules').select('Schedule_ID, Date, Shift').eq('User_ID', data.userId);
+        return shifts ? shifts.map(s => ({ id: s.Schedule_ID, date: s.Date, shift: s.Shift })) : [];
     }
 };
 
