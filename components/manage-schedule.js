@@ -56,7 +56,7 @@
                 </div>
             </div>
             <div id="nurseListArea" class="list-group shadow-sm" style="border-radius: 12px; overflow: hidden;">
-                <div class="text-center py-5 text-muted bg-white">กรุณาเลือกวันที่ด้านบนก่อนนะคะ</div>
+                <div class="text-center py-5 text-muted bg-white border border-light">กรุณาเลือกวันที่ด้านบนก่อนนะคะ</div>
             </div>
         </div>
 
@@ -117,7 +117,7 @@ var currentShifts = {};
 function switchManageMode(mode) {
     manageMode = mode;
     document.querySelectorAll('.manage-view').forEach(v => v.classList.add('d-none'));
-    document.getElementById('view-' + mode).classList.remove('d-none');
+    document.getElementById('view-by-' + mode).classList.remove('d-none');
     
     document.getElementById('tab-by-date').classList.toggle('active', mode === 'date');
     document.getElementById('tab-by-nurse').classList.toggle('active', mode === 'nurse');
