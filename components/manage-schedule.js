@@ -39,7 +39,7 @@
                             <input type="radio" class="btn-check" name="paintMode" id="mode-ดึก" value="ดึก" onchange="updatePaintMode()">
                             <label class="btn btn-outline-secondary btn-sm fw-bold" style="background-color: #6f42c1; color: white; border-color: #6f42c1;" for="mode-ดึก">ดึก</label>
                             <input type="radio" class="btn-check" name="paintMode" id="mode-clear" value="clear" onchange="updatePaintMode()">
-                            <label class="btn btn-outline-dark btn-sm fw-bold" for="mode-clear">ล้าง</label>
+                            <label class="btn btn-outline-dark btn-sm fw-bold" for="mode-clear">ล้างทั้งหมด</label>
                         </div>
                     </div>
 
@@ -113,7 +113,7 @@ var pendingAction = null;
 var activePaintMode = 'select';
 var fullNurseData = [];
 var currentShifts = {};
-var cachedMonthData = { key: null, data: null }; // ⚡ Data Cache
+var cachedMonthData = { key: null, data: null };
 
 function switchManageMode(mode) {
     manageMode = mode;
@@ -155,7 +155,7 @@ async function loadNursesForManage() {
     try {
         const res = await apiCall('getManagementData', { date: date });
         fullNurseData = res.nurses;
-        currentShifts = res.shifts;
+        currentShifts = res.shifts || {};
 
         const deptSelect = document.getElementById('filterDept');
         const depts = [...new Set(fullNurseData.map(n => n.dept))].sort();
@@ -172,35 +172,46 @@ function renderNurseList(nurses) {
     nurses.forEach(function (nurse) {
         var item = document.createElement('div');
         item.className = 'list-group-item p-2 bg-white border-0 border-bottom d-flex justify-content-between align-items-center';
-        var currentShift = currentShifts[nurse.id] || null;
-        var badgeHtml = getShiftBadge(nurse.id, currentShift);
+        
+        var nurseShifts = currentShifts[nurse.id] || [];
+        var badgeHtml = getShiftBadgesList(nurse.id, nurseShifts);
 
         item.innerHTML = `
             <div class="flex-grow-1" onclick="handleNurseItemClick('${nurse.id}', '${nurse.name}')">
                 <span class="fw-bold d-block text-dark" style="font-size: 13px;">${nurse.name}</span>
                 <div class="d-flex align-items-center gap-2">
                     <small class="text-muted" style="font-size: 10px;">${nurse.dept}</small>
-                    ${badgeHtml}
+                    <div id="badges-${nurse.id}" class="d-flex gap-1">${badgeHtml}</div>
                 </div>
             </div>
             <div class="btn-group btn-group-sm">
-                <button class="btn btn-outline-warning text-dark fw-bold" onclick="event.stopPropagation(); assignShift('${nurse.id}', '${nurse.name}', 'เช้า')">เช้า</button>
-                <button class="btn btn-outline-danger fw-bold" onclick="event.stopPropagation(); assignShift('${nurse.id}', '${nurse.name}', 'บ่าย')">บ่าย</button>
-                <button class="btn btn-outline-secondary fw-bold" onclick="event.stopPropagation(); assignShift('${nurse.id}', '${nurse.name}', 'ดึก')">ดึก</button>
+                <button class="btn btn-outline-warning text-dark fw-bold" onclick="event.stopPropagation(); toggleShift('${nurse.id}', '${nurse.name}', 'เช้า')">เช้า</button>
+                <button class="btn btn-outline-danger fw-bold" onclick="event.stopPropagation(); toggleShift('${nurse.id}', '${nurse.name}', 'บ่าย')">บ่าย</button>
+                <button class="btn btn-outline-secondary fw-bold" onclick="event.stopPropagation(); toggleShift('${nurse.id}', '${nurse.name}', 'ดึก')">ดึก</button>
             </div>`;
         area.appendChild(item);
     });
 }
 
-function getShiftBadge(userId, shift) {
-    if (!shift) return `<span class="badge bg-light text-muted border p-1" style="font-size: 10px; font-weight: normal;" id="status-${userId}">ยังไม่มีเวร</span>`;
+function getShiftBadgesList(userId, shifts) {
+    if (!shifts || shifts.length === 0) return `<span class="badge bg-light text-muted border p-1" style="font-size: 10px; font-weight: normal;">ยังไม่มีเวร</span>`;
+    
+    let html = '';
     const config = {
-        'เช้า': { class: 'bg-warning text-dark', label: 'เวรเช้า' },
-        'บ่าย': { class: 'bg-danger text-white', label: 'เวรบ่าย' },
-        'ดึก': { style: 'background-color: #6f42c1;', class: 'text-white', label: 'เวรดึก' }
+        'เช้า': { class: 'bg-warning text-dark', label: 'เช้า' },
+        'บ่าย': { class: 'bg-danger text-white', label: 'บ่าย' },
+        'ดึก': { style: 'background-color: #6f42c1;', class: 'text-white', label: 'ดึก' }
     };
-    const c = config[shift];
-    return `<span class="badge ${c.class} p-1" ${c.style ? `style="${c.style}"` : ''} id="status-${userId}">${c.label}</span>`;
+    
+    // Sort to keep order consistent
+    const order = ['เช้า', 'บ่าย', 'ดึก'];
+    order.forEach(type => {
+        if (shifts.includes(type)) {
+            const c = config[type];
+            html += `<span class="badge ${c.class} p-1" ${c.style ? `style="${c.style}"` : ''}>${c.label}</span>`;
+        }
+    });
+    return html;
 }
 
 function filterNurseList() {
@@ -223,7 +234,6 @@ async function loadNurseMonthView() {
         const [year, month] = monthStr.split('-').map(Number);
         const cacheKey = `${year}-${month}`;
         
-        // ⚡ Smart Caching for Team Coverage
         let allShifts;
         if (cachedMonthData.key === cacheKey) {
             allShifts = cachedMonthData.data;
@@ -234,17 +244,15 @@ async function loadNurseMonthView() {
 
         const shifts = await apiCall('getNurseShifts', { userId, month: month - 1, year });
         const shiftMap = {};
-        shifts.forEach(s => { shiftMap[s.date] = s.shift; });
+        shifts.forEach(s => { 
+            if (!shiftMap[s.date]) shiftMap[s.date] = [];
+            shiftMap[s.date].push(s.shift);
+        });
 
-        // Group all shifts by date and type for the summary
         const dailySummary = {};
         allShifts.forEach(s => {
-            if (!dailySummary[s.Date]) {
-                dailySummary[s.Date] = { 'เช้า': [], 'บ่าย': [], 'ดึก': [] };
-            }
-            if (dailySummary[s.Date][s.Shift]) {
-                dailySummary[s.Date][s.Shift].push(s.profiles.Name);
-            }
+            if (!dailySummary[s.Date]) { dailySummary[s.Date] = { 'เช้า': [], 'บ่าย': [], 'ดึก': [] }; }
+            if (dailySummary[s.Date][s.Shift]) { dailySummary[s.Date][s.Shift].push(s.profiles.Name); }
         });
 
         const daysInMonth = new Date(year, month, 0).getDate();
@@ -252,26 +260,25 @@ async function loadNurseMonthView() {
         
         for (let d = 1; d <= daysInMonth; d++) {
             const dateStr = `${year}-${String(month).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
-            const currentShift = shiftMap[dateStr] || null;
+            const nurseShifts = shiftMap[dateStr] || [];
             const summary = dailySummary[dateStr] || { 'เช้า': [], 'บ่าย': [], 'ดึก': [] };
             
             const item = document.createElement('div');
             item.className = `list-group-item p-2 bg-white border-0 border-bottom`;
             
-            const badgeHtml = getShiftBadge(`nurse-${d}`, currentShift);
+            const badgesHtml = getShiftBadgesList(`nurse-${d}`, nurseShifts);
             const dateLabel = new Date(dateStr).toLocaleDateString('th-TH', { day: 'numeric', month: 'short' });
 
             item.innerHTML = `
                 <div class="d-flex justify-content-between align-items-center mb-1">
                     <div>
                         <span class="fw-bold small text-dark">${dateLabel}</span>
-                        ${badgeHtml.replace(`id="status-nurse-${d}"`, `id="nurse-date-${dateStr}"`)}
+                        <div id="nurse-badges-${dateStr}" class="d-inline-flex gap-1 ms-1">${badgesHtml}</div>
                     </div>
                     <div class="btn-group btn-group-sm shadow-sm">
-                        <button class="btn btn-outline-warning text-dark fw-bold" onclick="quickNurseAction('${userId}', '${dateStr}', 'เช้า')">เช้า</button>
-                        <button class="btn btn-outline-danger fw-bold" onclick="quickNurseAction('${userId}', '${dateStr}', 'บ่าย')">บ่าย</button>
-                        <button class="btn btn-outline-secondary fw-bold" onclick="quickNurseAction('${userId}', '${dateStr}', 'ดึก')">ดึก</button>
-                        <button class="btn btn-outline-dark" onclick="quickNurseAction('${userId}', '${dateStr}', null)"><i class="fa-solid fa-xmark"></i></button>
+                        <button class="btn btn-outline-warning text-dark fw-bold" onclick="toggleNurseShift('${userId}', '${dateStr}', 'เช้า')">เช้า</button>
+                        <button class="btn btn-outline-danger fw-bold" onclick="toggleNurseShift('${userId}', '${dateStr}', 'บ่าย')">บ่าย</button>
+                        <button class="btn btn-outline-secondary fw-bold" onclick="toggleNurseShift('${userId}', '${dateStr}', 'ดึก')">ดึก</button>
                     </div>
                 </div>
                 <div class="text-muted" style="font-size: 9px; padding-left: 2px;">
@@ -288,79 +295,89 @@ async function loadNurseMonthView() {
     }
 }
 
-async function quickNurseAction(userId, date, shift) {
-    const label = document.getElementById('nurse-date-' + date);
-    if (label) { label.className = 'badge bg-info text-white p-1'; label.innerText = 'บันทึก...'; }
+// --- TOGGLE LOGIC ---
+async function toggleShift(userId, name, shift) {
+    const badgeArea = document.getElementById('badges-' + userId);
+    const targetDate = document.getElementById('targetDate').value;
+    
+    const currentList = currentShifts[userId] || [];
+    const hasShift = currentList.includes(shift);
+    
+    badgeArea.innerHTML = `<span class="badge bg-info text-white p-1">...</span>`;
 
     try {
-        const res = shift 
-            ? await apiCall('saveShift', { userId, date, shift })
-            : await apiCall('deleteShift', { userId, date });
-            
-        if (res.success) {
-            // ⚡ Update local cache to reflect changes immediately
-            cachedMonthData.key = null; 
+        let res;
+        if (hasShift) {
+            res = await apiCall('deleteShift', { userId, date: targetDate, shift });
+            if (res.success) {
+                currentShifts[userId] = currentList.filter(s => s !== shift);
+            }
+        } else {
+            res = await apiCall('saveShift', { userId, date: targetDate, shift });
+            if (res.success) {
+                if (!currentShifts[userId]) currentShifts[userId] = [];
+                currentShifts[userId].push(shift);
+            }
+        }
+        badgeArea.innerHTML = getShiftBadgesList(userId, currentShifts[userId]);
+        cachedMonthData.key = null; // Clear cache
+    } catch (e) { console.error(e); badgeArea.innerHTML = 'Error'; }
+}
 
-            if (!shift) { 
-                label.className = 'badge bg-light text-muted border p-1'; label.innerText = 'ยังไม่มีเวร'; label.style.backgroundColor = ''; 
-            }
-            else {
-                const config = { 'เช้า': 'bg-warning text-dark', 'บ่าย': 'bg-danger text-white', 'ดึก': 'text-white' };
-                label.className = 'badge ' + config[shift] + ' p-1';
-                label.innerText = 'เวร' + shift;
-                label.style.backgroundColor = shift === 'ดึก' ? '#6f42c1' : '';
-            }
+async function toggleNurseShift(userId, date, shift) {
+    const badgeArea = document.getElementById('nurse-badges-' + date);
+    // Find current shifts for this date (need to search shiftMap or refetch, for simplicity we refetch context or just update UI)
+    // Let's use a simpler way: check existing badges text
+    const hasShift = badgeArea.innerText.includes(shift);
+    
+    badgeArea.innerHTML = `<span class="badge bg-info text-white p-1">...</span>`;
+
+    try {
+        let res;
+        if (hasShift) {
+            res = await apiCall('deleteShift', { userId, date, shift });
+        } else {
+            res = await apiCall('saveShift', { userId, date, shift });
+        }
+        
+        if (res.success) {
+            // Refetch or update local state? Let's just refetch for accuracy
+            loadNurseMonthView(); 
         }
     } catch (e) { console.error(e); }
 }
 
-// --- SHARED ACTIONS ---
 function handleNurseItemClick(userId, name) {
     if (activePaintMode === 'select') return;
-    activePaintMode === 'clear' ? quickAction(userId, 'delete') : quickAction(userId, 'save', activePaintMode);
-}
-
-async function quickAction(userId, type, shift) {
-    const statusLabel = document.getElementById('status-' + userId);
-    const targetDate = document.getElementById('targetDate').value;
-    if (statusLabel) { statusLabel.className = 'badge bg-info text-white p-1'; statusLabel.innerText = 'บันทึก...'; }
-    try {
-        const res = type === 'save' 
-            ? await apiCall('saveShift', { userId, date: targetDate, shift }) 
-            : await apiCall('deleteShift', { userId, date: targetDate });
-            
-        if (res.success) {
-            cachedMonthData.key = null; // Clear cache on change
-            type === 'save' ? (currentShifts[userId] = shift) : (delete currentShifts[userId]);
-            updateBadge(userId, type === 'save' ? shift : null);
-        }
-    } catch (e) { if (statusLabel) statusLabel.innerText = 'Error'; }
-}
-
-function updateBadge(userId, shift) {
-    const label = document.getElementById('status-' + userId);
-    if (!label) return;
-    if (!shift) { label.className = 'badge bg-light text-muted border p-1'; label.innerText = 'ยังไม่มีเวร'; label.style.backgroundColor = ''; }
-    else {
-        const config = { 'เช้า': 'bg-warning text-dark', 'บ่าย': 'bg-danger text-white', 'ดึก': 'text-white' };
-        label.className = 'badge ' + config[shift] + ' p-1'; label.innerText = 'เวร' + shift;
-        label.style.backgroundColor = shift === 'ดึก' ? '#6f42c1' : '';
+    if (activePaintMode === 'clear') {
+        // Clear all shifts for this day
+        clearAllShifts(userId);
+    } else {
+        toggleShift(userId, name, activePaintMode);
     }
 }
 
+async function clearAllShifts(userId) {
+    const badgeArea = document.getElementById('badges-' + userId);
+    const targetDate = document.getElementById('targetDate').value;
+    badgeArea.innerHTML = `<span class="badge bg-dark text-white p-1">ล้าง...</span>`;
+    try {
+        const res = await apiCall('deleteShift', { userId, date: targetDate });
+        if (res.success) {
+            currentShifts[userId] = [];
+            badgeArea.innerHTML = getShiftBadgesList(userId, []);
+            cachedMonthData.key = null;
+        }
+    } catch (e) { console.error(e); }
+}
+
 function assignShift(userId, nurseName, shift) {
-    var date = document.getElementById('targetDate').value;
-    if (!date) return alert('กรุณาเลือกวันที่ก่อนนะคะ');
-    pendingAction = { type: 'save', userId: userId, date: date, shift: shift };
-    document.getElementById('confirmBodyText').innerText = 'คุณต้องการจัดให้คุณ "' + nurseName + '" ขึ้นเวร "' + shift + '" ในวันที่ ' + date + ' ใช่หรือไม่คะ?';
-    document.getElementById('confirmIcon').innerHTML = '<i class="fa-solid fa-calendar-check text-primary fa-3x"></i>';
-    new bootstrap.Modal(document.getElementById('customConfirmModal')).show();
+    // Legacy modal support if needed
+    toggleShift(userId, nurseName, shift);
 }
 
 async function executePendingAction() {
+    // Legacy modal support
     var modal = bootstrap.Modal.getInstance(document.getElementById('customConfirmModal'));
     if (modal) modal.hide();
-    if (!pendingAction) return;
-    await quickAction(pendingAction.userId, pendingAction.type, pendingAction.shift);
-    pendingAction = null;
 }
