@@ -5,13 +5,20 @@ const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
 const gas = {
     // ⚡ LOGIN
-    checkLogin: async (data) => {
-        const { email, password } = data;
+    checkLogin: async (email, password) => {
+        // Handle both object and positional arguments
+        let uEmail = email;
+        let uPass = password;
+        if (typeof email === 'object' && email !== null) {
+            uEmail = email.email;
+            uPass = email.password;
+        }
+
         const { data: user, error } = await supabaseClient
             .from('profiles')
             .select('*')
-            .eq('Email', email)
-            .eq('Password', password)
+            .eq('Email', uEmail)
+            .eq('Password', uPass)
             .single();
 
         if (error || !user) return { success: false, message: 'อีเมล หรือ รหัสผ่านไม่ถูกต้องค่ะ' };
@@ -50,6 +57,7 @@ const gas = {
 
     // ⚡ MANAGEMENT
     getManagementData: async (data) => {
+        const targetDate = typeof data === 'object' ? data.date : data;
         const { data: nurses } = await supabaseClient
             .from('profiles')
             .select('User_ID, Name, Department, Role')
@@ -59,7 +67,7 @@ const gas = {
         const { data: shifts } = await supabaseClient
             .from('schedules')
             .select('User_ID, Shift')
-            .eq('Date', data.date);
+            .eq('Date', targetDate);
         
         const shiftMap = {};
         shifts?.forEach(s => { shiftMap[s.User_ID] = s.Shift; });
@@ -70,38 +78,51 @@ const gas = {
         };
     },
 
-    saveShift: async (data) => {
-        const { userId, date, shift } = data;
-        // Delete existing for that person on that day
-        await supabaseClient.from('schedules').delete().eq('User_ID', userId).eq('Date', date);
-        // Insert new with custom Schedule_ID
+    saveShift: async (userId, date, shift) => {
+        // Handle object arg from apiCall
+        let uId = userId, uDate = date, uShift = shift;
+        if (typeof userId === 'object') {
+            uId = userId.userId; uDate = userId.date; uShift = userId.shift;
+        }
+
+        await supabaseClient.from('schedules').delete().eq('User_ID', uId).eq('Date', uDate);
         const scheduleId = "SCH-" + new Date().getTime();
         const { error } = await supabaseClient.from('schedules').insert([
-            { "Schedule_ID": scheduleId, "User_ID": userId, "Date": date, "Shift": shift, "Status": "Confirmed" }
+            { "Schedule_ID": scheduleId, "User_ID": uId, "Date": uDate, "Shift": uShift, "Status": "Confirmed" }
         ]);
         return { success: !error };
     },
 
-    deleteShift: async (data) => {
-        const { error } = await supabaseClient.from('schedules').delete().eq('User_ID', data.userId).eq('Date', data.date);
+    deleteShift: async (userId, date) => {
+        let uId = userId, uDate = date;
+        if (typeof userId === 'object') {
+            uId = userId.userId; uDate = userId.date;
+        }
+        const { error } = await supabaseClient.from('schedules').delete().eq('User_ID', uId).eq('Date', uDate);
         return { success: !error };
     },
 
     // ⚡ SWAPS
     createSwapRequest: async (scheduleId, ownerId, requesterEmail) => {
-        const { data: reqUser } = await supabaseClient.from('profiles').select('User_ID').eq('Email', requesterEmail).single();
-        if (reqUser.User_ID === ownerId) return { success: false, message: 'ไม่ต้องแลกกับตัวเองน้า' };
+        // Handle object arg from apiCall
+        let sId = scheduleId, oId = ownerId, rEmail = requesterEmail;
+        if (typeof scheduleId === 'object') {
+            sId = scheduleId.scheduleId; oId = scheduleId.ownerId; rEmail = scheduleId.requesterEmail;
+        }
+
+        const { data: reqUser } = await supabaseClient.from('profiles').select('User_ID').eq('Email', rEmail).single();
+        if (!reqUser || reqUser.User_ID === oId) return { success: false, message: 'ไม่ต้องแลกกับตัวเองน้า' };
 
         const swapId = "SWAP-" + new Date().getTime();
         const { error } = await supabaseClient.from('swaps').insert([
-            { "Swap_ID": swapId, "Schedule_ID": scheduleId, "Requester_ID": reqUser.User_ID, "Owner_ID": ownerId, "Status": "Pending" }
+            { "Swap_ID": swapId, "Schedule_ID": sId, "Requester_ID": reqUser.User_ID, "Owner_ID": oId, "Status": "Pending" }
         ]);
         return { success: !error, message: error ? error.message : 'ส่งคำขอสำเร็จแล้วค่ะ' };
     },
 
     getAllMySwaps: async (params) => {
-        const { userEmail } = params;
-        const { data: me } = await supabaseClient.from('profiles').select('User_ID').eq('Email', userEmail).single();
+        const email = typeof params === 'object' ? params.userEmail : params;
+        const { data: me } = await supabaseClient.from('profiles').select('User_ID').eq('Email', email).single();
         if (!me) return { incoming: [], outgoing: [] };
 
         const { data: incoming } = await supabaseClient
@@ -133,19 +154,17 @@ const gas = {
     },
 
     approveSwap: async (params) => {
-        const { swapId } = params;
+        const swapId = typeof params === 'object' ? params.swapId : params;
         const { data: swap } = await supabaseClient.from('swaps').select('*').eq('Swap_ID', swapId).single();
         if (!swap) return { success: false };
 
-        // Update schedule owner
         await supabaseClient.from('schedules').update({ "User_ID": swap.Requester_ID }).eq('Schedule_ID', swap.Schedule_ID);
-        // Update swap status
         await supabaseClient.from('swaps').update({ "Status": 'Approved' }).eq('Swap_ID', swapId);
         return { success: true, message: 'อนุมัติเรียบร้อยค่ะ' };
     },
 
     rejectSwap: async (params) => {
-        const { swapId } = params;
+        const swapId = typeof params === 'object' ? params.swapId : params;
         const { error } = await supabaseClient.from('swaps').update({ "Status": 'Rejected' }).eq('Swap_ID', swapId);
         return { success: !error, message: error ? 'พังค่ะ' : 'ปฏิเสธเรียบร้อยค่ะ' };
     },
@@ -182,13 +201,13 @@ const gas = {
     },
 
     getNurseShifts: async (data) => {
-        const { data: shifts } = await supabaseClient.from('schedules').select('Schedule_ID, Date, Shift').eq('User_ID', data.userId);
+        const uId = typeof data === 'object' ? data.userId : data;
+        const { data: shifts } = await supabaseClient.from('schedules').select('Schedule_ID, Date, Shift').eq('User_ID', uId);
         return shifts ? shifts.map(s => ({ id: s.Schedule_ID, date: s.Date, shift: s.Shift })) : [];
     }
 };
 
 async function apiCall(action, data = {}) {
     if (gas[action]) return await gas[action](data);
-    console.error('Unknown action:', action);
     return { success: false, message: 'Action not found' };
 }
