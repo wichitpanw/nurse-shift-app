@@ -34,7 +34,8 @@ function loginSuccess(userData) {
     localStorage.setItem('currentUser', JSON.stringify(userData));
     document.getElementById('app-nav').classList.remove('d-none');
 
-    if (userData.role === "SuperAdmin" || userData.role === "Admin") {
+    // SuperAdmin, Admin, AND SuperUser can manage schedules
+    if (userData.role === "SuperAdmin" || userData.role === "Admin" || userData.role === "SuperUser") {
         document.getElementById('nav-manage').classList.remove('d-none');
     } else {
         document.getElementById('nav-manage').classList.add('d-none');

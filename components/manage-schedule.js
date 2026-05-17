@@ -77,7 +77,7 @@
                 </div>
             </div>
             <div id="nurseMonthArea" class="list-group shadow-sm" style="border-radius: 12px; overflow: hidden;">
-                <div class="text-center py-5 text-muted bg-white">กรุณาเลือกรายชื่อและเดือนด้านบนค่ะ</div>
+                <div class="text-center py-5 text-muted bg-white border border-light">กรุณาเลือกรายชื่อและเดือนด้านบนค่ะ</div>
             </div>
         </div>
     </div>
@@ -113,6 +113,7 @@ var pendingAction = null;
 var activePaintMode = 'select';
 var fullNurseData = [];
 var currentShifts = {};
+var cachedMonthData = { key: null, data: null }; // ⚡ Data Cache
 
 function switchManageMode(mode) {
     manageMode = mode;
@@ -220,24 +221,29 @@ async function loadNurseMonthView() {
 
     try {
         const [year, month] = monthStr.split('-').map(Number);
+        const cacheKey = `${year}-${month}`;
         
-        // Fetch both selected nurse's shifts AND all shifts for context summary
-        const [shifts, allShifts] = await Promise.all([
-            apiCall('getNurseShifts', { userId, month: month - 1, year }),
-            apiCall('getMonthShifts', { month: month - 1, year })
-        ]);
+        // ⚡ Smart Caching for Team Coverage
+        let allShifts;
+        if (cachedMonthData.key === cacheKey) {
+            allShifts = cachedMonthData.data;
+        } else {
+            allShifts = await apiCall('getMonthShifts', { month: month - 1, year });
+            cachedMonthData = { key: cacheKey, data: allShifts };
+        }
 
+        const shifts = await apiCall('getNurseShifts', { userId, month: month - 1, year });
         const shiftMap = {};
         shifts.forEach(s => { shiftMap[s.date] = s.shift; });
 
         // Group all shifts by date and type for the summary
         const dailySummary = {};
         allShifts.forEach(s => {
-            if (!dailySummary[s.date]) {
-                dailySummary[s.date] = { 'เช้า': 0, 'บ่าย': 0, 'ดึก': 0 };
+            if (!dailySummary[s.Date]) {
+                dailySummary[s.Date] = { 'เช้า': 0, 'บ่าย': 0, 'ดึก': 0 };
             }
-            if (dailySummary[s.date][s.shift] !== undefined) {
-                dailySummary[s.date][s.shift]++;
+            if (dailySummary[s.Date][s.Shift] !== undefined) {
+                dailySummary[s.Date][s.Shift]++;
             }
         });
 
@@ -290,6 +296,16 @@ async function quickNurseAction(userId, date, shift) {
             : await apiCall('deleteShift', { userId, date });
             
         if (res.success) {
+            // ⚡ Update local cache to reflect changes immediately
+            if (cachedMonthData.key) {
+                const yearMonth = date.substring(0, 7);
+                if (cachedMonthData.key === yearMonth.replace('-0','-').replace('-', '-')) {
+                    // This is complex to update correctly without a re-fetch, but for now we re-fetch context if needed
+                    // Or just clear cache
+                    cachedMonthData.key = null; 
+                }
+            }
+
             if (!shift) { label.className = 'badge bg-light text-muted border p-1'; label.innerText = 'ยังไม่มีเวร'; label.style.backgroundColor = ''; }
             else {
                 const config = { 'เช้า': 'bg-warning text-dark', 'บ่าย': 'bg-danger text-white', 'ดึก': 'text-white' };
@@ -317,6 +333,7 @@ async function quickAction(userId, type, shift) {
             : await apiCall('deleteShift', { userId, date: targetDate });
             
         if (res.success) {
+            cachedMonthData.key = null; // Clear cache on change
             type === 'save' ? (currentShifts[userId] = shift) : (delete currentShifts[userId]);
             updateBadge(userId, type === 'save' ? shift : null);
         }
@@ -329,7 +346,8 @@ function updateBadge(userId, shift) {
     if (!shift) { label.className = 'badge bg-light text-muted border p-1'; label.innerText = 'ยังไม่มีเวร'; label.style.backgroundColor = ''; }
     else {
         const config = { 'เช้า': 'bg-warning text-dark', 'บ่าย': 'bg-danger text-white', 'ดึก': 'text-white' };
-        label.className = 'badge ' + config[shift] + ' p-1'; label.innerText = 'เวร' + shift;
+        label.className = 'badge ' + config[shift] + ' p-1';
+        label.innerText = 'เวร' + shift;
         label.style.backgroundColor = shift === 'ดึก' ? '#6f42c1' : '';
     }
 }
