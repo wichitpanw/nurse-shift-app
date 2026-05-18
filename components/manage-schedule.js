@@ -62,7 +62,7 @@
 
         <!-- Mode 2: By Nurse -->
         <div id="view-by-nurse" class="manage-view d-none">
-            <div class="card shadow-sm border-0 mb-3" style="border-radius: 15px;">
+            <div class="card shadow-sm border-0 mb-2" style="border-radius: 15px;">
                 <div class="card-body">
                     <div class="mb-2">
                         <label class="small text-muted fw-bold mb-1">เลือกบุคคลากร</label>
@@ -76,13 +76,25 @@
                     </div>
                 </div>
             </div>
+
+            <!-- Weekly Navigation -->
+            <div id="weekNavArea" class="mb-2 d-none">
+                <div class="btn-group w-100 shadow-sm" role="group">
+                    <button class="btn btn-light btn-sm fw-bold week-btn active" id="week-1" onclick="switchWeek(1)">สัปดาห์ 1</button>
+                    <button class="btn btn-light btn-sm fw-bold week-btn" id="week-2" onclick="switchWeek(2)">2</button>
+                    <button class="btn btn-light btn-sm fw-bold week-btn" id="week-3" onclick="switchWeek(3)">3</button>
+                    <button class="btn btn-light btn-sm fw-bold week-btn" id="week-4" onclick="switchWeek(4)">4</button>
+                    <button class="btn btn-light btn-sm fw-bold week-btn" id="week-5" onclick="switchWeek(5)">5</button>
+                </div>
+            </div>
+
             <div id="nurseMonthArea" class="list-group shadow-sm" style="border-radius: 12px; overflow: hidden;">
                 <div class="text-center py-5 text-muted bg-white border border-light">กรุณาเลือกรายชื่อและเดือนด้านบนค่ะ</div>
             </div>
         </div>
     </div>
 
-    <!-- Modal for Confirmation -->
+    <!-- Modal for Confirmation (Legacy) -->
     <div class="modal fade" id="customConfirmModal" data-bs-backdrop="static" data-bs-keyboard="false" tabindex="-1"
         aria-hidden="true">
         <div class="modal-dialog modal-dialog-centered modal-sm p-3">
@@ -109,11 +121,22 @@
 })();
 
 var manageMode = 'date'; 
-var pendingAction = null;
 var activePaintMode = 'select';
 var fullNurseData = [];
 var currentShifts = {};
 var cachedMonthData = { key: null, data: null };
+
+// Global Month View State
+var currentMonthState = {
+    userId: null,
+    userName: null,
+    month: null,
+    year: null,
+    nurseShifts: {},
+    dailySummary: {},
+    daysInMonth: 0,
+    currentWeek: 1
+};
 
 function switchManageMode(mode) {
     manageMode = mode;
@@ -220,12 +243,19 @@ function filterNurseList() {
     renderNurseList(filtered);
 }
 
-// --- BY NURSE LOGIC ---
+// --- BY NURSE LOGIC (Weekly View) ---
+
 async function loadNurseMonthView() {
     const userId = document.getElementById('nurseSelect').value;
+    const userName = document.getElementById('nurseSelect').options[document.getElementById('nurseSelect').selectedIndex]?.text;
     const monthStr = document.getElementById('nurseMonth').value;
     const area = document.getElementById('nurseMonthArea');
-    if (!userId || !monthStr) return;
+    const navArea = document.getElementById('weekNavArea');
+    
+    if (!userId || !monthStr) {
+        navArea.classList.add('d-none');
+        return;
+    }
 
     area.innerHTML = '<div class="text-center py-5 bg-white"><div class="spinner-border text-primary spinner-border-sm"></div></div>';
 
@@ -242,6 +272,7 @@ async function loadNurseMonthView() {
         }
 
         const shifts = await apiCall('getNurseShifts', { userId, month: month - 1, year });
+        
         const shiftMap = {};
         shifts.forEach(s => { 
             if (!shiftMap[s.date]) shiftMap[s.date] = [];
@@ -255,42 +286,86 @@ async function loadNurseMonthView() {
         });
 
         const daysInMonth = new Date(year, month, 0).getDate();
-        area.innerHTML = '';
-        
-        for (let d = 1; d <= daysInMonth; d++) {
-            const dateStr = `${year}-${String(month).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
-            const nurseShifts = shiftMap[dateStr] || [];
-            const summary = dailySummary[dateStr] || { 'เช้า': [], 'บ่าย': [], 'ดึก': [] };
-            
-            const item = document.createElement('div');
-            item.className = `list-group-item p-2 bg-white border-0 border-bottom`;
-            
-            const badgesHtml = getShiftBadgesList(`nurse-${d}`, nurseShifts);
-            const dateLabel = new Date(dateStr).toLocaleDateString('th-TH', { day: 'numeric', month: 'short' });
 
-            item.innerHTML = `
-                <div class="d-flex justify-content-between align-items-center mb-1">
-                    <div>
-                        <span class="fw-bold small text-dark">${dateLabel}</span>
-                        <div id="nurse-badges-${dateStr}" class="d-inline-flex gap-1 ms-1">${badgesHtml}</div>
-                    </div>
-                    <div class="btn-group btn-group-sm shadow-sm">
-                        <button class="btn btn-outline-warning text-dark fw-bold" onclick="toggleNurseShift('${userId}', '${dateStr}', 'เช้า')">เช้า</button>
-                        <button class="btn btn-outline-danger fw-bold" onclick="toggleNurseShift('${userId}', '${dateStr}', 'บ่าย')">บ่าย</button>
-                        <button class="btn btn-outline-secondary fw-bold" onclick="toggleNurseShift('${userId}', '${dateStr}', 'ดึก')">ดึก</button>
-                    </div>
-                </div>
-                <div class="text-muted" style="font-size: 9px; padding-left: 2px;">
-                    <div class="mb-1"><span class="fw-bold text-warning">เช้า:</span> ${summary['เช้า'].join(', ') || '-'}</div>
-                    <div class="mb-1"><span class="fw-bold text-danger">บ่าย:</span> ${summary['บ่าย'].join(', ') || '-'}</div>
-                    <div class="mb-1"><span class="fw-bold text-purple" style="color: #6f42c1;">ดึก:</span> ${summary['ดึก'].join(', ') || '-'}</div>
-                </div>
-            `;
-            area.appendChild(item);
-        }
+        // Update State
+        currentMonthState = {
+            userId, userName, month, year,
+            nurseShifts: shiftMap,
+            dailySummary: dailySummary,
+            daysInMonth,
+            currentWeek: currentMonthState.currentWeek || 1
+        };
+
+        navArea.classList.remove('d-none');
+        renderWeeklyList();
+
     } catch (e) { 
         console.error(e);
         area.innerHTML = '<div class="text-center py-5 text-danger bg-white">Error: ' + e.message + '</div>'; 
+    }
+}
+
+function switchWeek(weekNum) {
+    currentMonthState.currentWeek = weekNum;
+    document.querySelectorAll('.week-btn').forEach(btn => btn.classList.remove('active', 'btn-primary'));
+    document.querySelectorAll('.week-btn').forEach(btn => btn.classList.add('btn-light'));
+    
+    const activeBtn = document.getElementById('week-' + weekNum);
+    activeBtn.classList.remove('btn-light');
+    activeBtn.classList.add('active', 'btn-primary');
+    
+    renderWeeklyList();
+}
+
+function renderWeeklyList() {
+    const area = document.getElementById('nurseMonthArea');
+    area.innerHTML = '';
+
+    const startDay = (currentMonthState.currentWeek - 1) * 7 + 1;
+    let endDay = currentMonthState.currentWeek * 7;
+    if (currentMonthState.currentWeek === 5 || endDay > currentMonthState.daysInMonth) {
+        endDay = currentMonthState.daysInMonth;
+    }
+    
+    // Safety check for empty month
+    if (startDay > currentMonthState.daysInMonth) {
+        switchWeek(1);
+        return;
+    }
+
+    for (let d = startDay; d <= endDay; d++) {
+        const dateStr = `${currentMonthState.year}-${String(currentMonthState.month).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+        const nurseShifts = currentMonthState.nurseShifts[dateStr] || [];
+        const summary = currentMonthState.dailySummary[dateStr] || { 'เช้า': [], 'บ่าย': [], 'ดึก': [] };
+        
+        const item = document.createElement('div');
+        item.className = `list-group-item p-2 bg-white border-0 border-bottom`;
+        
+        const badgesHtml = getShiftBadgesList(`nurse-${d}`, nurseShifts);
+        const dateObj = new Date(dateStr);
+        const dateLabel = dateObj.toLocaleDateString('th-TH', { day: 'numeric', month: 'short' });
+        const dayLabel = dateObj.toLocaleDateString('th-TH', { weekday: 'short' });
+
+        item.innerHTML = `
+            <div class="d-flex justify-content-between align-items-center mb-1">
+                <div>
+                    <span class="text-primary fw-bold" style="font-size: 11px;">${dayLabel}</span>
+                    <span class="fw-bold small text-dark ms-1">${dateLabel}</span>
+                    <div id="nurse-badges-${dateStr}" class="d-inline-flex gap-1 ms-1">${badgesHtml}</div>
+                </div>
+                <div class="btn-group btn-group-sm shadow-sm">
+                    <button class="btn btn-outline-warning text-dark fw-bold" onclick="toggleNurseShift('${currentMonthState.userId}', '${dateStr}', 'เช้า')">เช้า</button>
+                    <button class="btn btn-outline-danger fw-bold" onclick="toggleNurseShift('${currentMonthState.userId}', '${dateStr}', 'บ่าย')">บ่าย</button>
+                    <button class="btn btn-outline-secondary fw-bold" onclick="toggleNurseShift('${currentMonthState.userId}', '${dateStr}', 'ดึก')">ดึก</button>
+                </div>
+            </div>
+            <div class="text-muted" style="font-size: 9px; padding-left: 2px;">
+                <div class="mb-1"><span class="fw-bold text-warning">เช้า:</span> ${summary['เช้า'].join(', ') || '-'}</div>
+                <div class="mb-1"><span class="fw-bold text-danger">บ่าย:</span> ${summary['บ่าย'].join(', ') || '-'}</div>
+                <div class="mb-1"><span class="fw-bold text-purple" style="color: #6f42c1;">ดึก:</span> ${summary['ดึก'].join(', ') || '-'}</div>
+            </div>
+        `;
+        area.appendChild(item);
     }
 }
 
