@@ -203,7 +203,6 @@ function getShiftBadgesList(userId, shifts) {
         'ดึก': { style: 'background-color: #6f42c1;', class: 'text-white', label: 'ดึก' }
     };
     
-    // Sort to keep order consistent
     const order = ['เช้า', 'บ่าย', 'ดึก'];
     order.forEach(type => {
         if (shifts.includes(type)) {
@@ -299,58 +298,45 @@ async function loadNurseMonthView() {
 async function toggleShift(userId, name, shift) {
     const badgeArea = document.getElementById('badges-' + userId);
     const targetDate = document.getElementById('targetDate').value;
-    
     const currentList = currentShifts[userId] || [];
     const hasShift = currentList.includes(shift);
     
     badgeArea.innerHTML = `<span class="badge bg-info text-white p-1">...</span>`;
 
     try {
-        let res;
         if (hasShift) {
-            res = await apiCall('deleteShift', { userId, date: targetDate, shift });
-            if (res.success) {
-                currentShifts[userId] = currentList.filter(s => s !== shift);
-            }
+            await apiCall('deleteShift', { userId, date: targetDate, shift });
+            currentShifts[userId] = currentList.filter(s => s !== shift);
         } else {
-            res = await apiCall('saveShift', { userId, date: targetDate, shift });
-            if (res.success) {
-                if (!currentShifts[userId]) currentShifts[userId] = [];
-                currentShifts[userId].push(shift);
-            }
+            await apiCall('saveShift', { userId, date: targetDate, shift });
+            if (!currentShifts[userId]) currentShifts[userId] = [];
+            currentShifts[userId].push(shift);
         }
         badgeArea.innerHTML = getShiftBadgesList(userId, currentShifts[userId]);
-        cachedMonthData.key = null; // Clear cache
+        cachedMonthData.key = null; 
     } catch (e) { console.error(e); badgeArea.innerHTML = 'Error'; }
 }
 
 async function toggleNurseShift(userId, date, shift) {
     const badgeArea = document.getElementById('nurse-badges-' + date);
-    // Find current shifts for this date (need to search shiftMap or refetch, for simplicity we refetch context or just update UI)
-    // Let's use a simpler way: check existing badges text
     const hasShift = badgeArea.innerText.includes(shift);
     
     badgeArea.innerHTML = `<span class="badge bg-info text-white p-1">...</span>`;
 
     try {
-        let res;
         if (hasShift) {
-            res = await apiCall('deleteShift', { userId, date, shift });
+            await apiCall('deleteShift', { userId, date, shift });
         } else {
-            res = await apiCall('saveShift', { userId, date, shift });
+            await apiCall('saveShift', { userId, date, shift });
         }
-        
-        if (res.success) {
-            // Refetch or update local state? Let's just refetch for accuracy
-            loadNurseMonthView(); 
-        }
+        cachedMonthData.key = null; 
+        loadNurseMonthView(); 
     } catch (e) { console.error(e); }
 }
 
 function handleNurseItemClick(userId, name) {
     if (activePaintMode === 'select') return;
     if (activePaintMode === 'clear') {
-        // Clear all shifts for this day
         clearAllShifts(userId);
     } else {
         toggleShift(userId, name, activePaintMode);
@@ -372,12 +358,10 @@ async function clearAllShifts(userId) {
 }
 
 function assignShift(userId, nurseName, shift) {
-    // Legacy modal support if needed
     toggleShift(userId, nurseName, shift);
 }
 
 async function executePendingAction() {
-    // Legacy modal support
     var modal = bootstrap.Modal.getInstance(document.getElementById('customConfirmModal'));
     if (modal) modal.hide();
 }
