@@ -1,7 +1,59 @@
+:root {
+    --apple-bg: #f5f5f7;
+    --apple-card: #ffffff;
+    --apple-primary: #0071e3;
+    --apple-primary-hover: #0077ed;
+    --apple-text: #1d1d1f;
+    --apple-text-muted: #86868b;
+    --apple-text-dark: #000000;
+    
+    /* Alert/Status Colors */
+    --apple-success: #34c759;
+    --apple-warning: #ff9f0a;
+    --apple-danger: #ff3b30;
+    --apple-info: #007aff;
+    --apple-purple: #5e5ce6;
+    
+    /* Shifts Palettes (Apple Curated Soft Pastel style) */
+    --shift-morning-bg: rgba(255, 159, 10, 0.12);
+    --shift-morning-text: #b25e00;
+    --shift-morning-border: rgba(255, 159, 10, 0.25);
+    
+    --shift-afternoon-bg: rgba(255, 69, 58, 0.1);
+    --shift-afternoon-text: #d82b20;
+    --shift-afternoon-border: rgba(255, 69, 58, 0.25);
+    
+    --shift-night-bg: rgba(94, 92, 230, 0.1);
+    --shift-night-text: #4c4ad3;
+    --shift-night-border: rgba(94, 92, 230, 0.25);
+    
+    /* Layout tokens */
+    --apple-border: rgba(0, 0, 0, 0.08);
+    --apple-shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.04);
+    --apple-shadow: 0 8px 30px rgba(0, 0, 0, 0.04), 0 2px 4px rgba(0, 0, 0, 0.02);
+    --apple-shadow-lg: 0 20px 40px rgba(0, 0, 0, 0.08), 0 1px 3px rgba(0, 0, 0, 0.02);
+    --apple-radius-lg: 16px;
+    --apple-radius-md: 12px;
+    --apple-radius-sm: 8px;
+    
+    --font-outfit: 'Outfit', -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", sans-serif;
+    --font-inter: 'Inter', -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", sans-serif;
+}
+
 body {
-    background-color: #f8fafb;
-    font-family: 'Segoe UI', Tahoma, sans-serif;
+    background-color: var(--apple-bg);
+    font-family: var(--font-inter);
+    color: var(--apple-text);
     -webkit-tap-highlight-color: transparent;
+    -webkit-font-smoothing: antialiased;
+    letter-spacing: -0.015em;
+}
+
+h1, h2, h3, h4, h5, h6 {
+    font-family: var(--font-outfit);
+    color: var(--apple-text-dark);
+    letter-spacing: -0.02em;
+    font-weight: 600;
 }
 
 .page-section {
@@ -12,68 +64,493 @@ body {
     display: block;
 }
 
+/* ⚡ Frosted Glass Navigation Bar */
+#app-nav {
+    background: rgba(255, 255, 255, 0.72) !important;
+    backdrop-filter: blur(20px) saturate(180%) !important;
+    -webkit-backdrop-filter: blur(20px) saturate(180%) !important;
+    border-bottom: 1px solid var(--apple-border) !important;
+    box-shadow: none !important;
+    padding-top: 10px;
+    padding-bottom: 10px;
+}
+
+#app-nav .navbar-brand {
+    color: var(--apple-text-dark) !important;
+    font-family: var(--font-outfit);
+    font-weight: 700;
+    font-size: 1.1rem !important;
+    letter-spacing: -0.03em;
+}
+
 .nav-link-custom {
-    color: rgba(255, 255, 255, 0.8);
+    color: var(--apple-text-muted) !important;
     font-size: 20px;
-    transition: 0.2s;
+    padding: 8px 12px;
+    border-radius: var(--apple-radius-sm);
+    transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    text-decoration: none !important;
 }
 
-.nav-link-custom:hover,
+.nav-link-custom:hover {
+    color: var(--apple-text-dark) !important;
+    background-color: rgba(0, 0, 0, 0.04);
+}
+
 .nav-link-custom.active {
-    color: #fff;
+    color: var(--apple-primary) !important;
+    background-color: rgba(0, 113, 227, 0.08);
 }
 
-/* Better Calendar Styling */
+.nav-link-custom.text-warning {
+    color: var(--apple-danger) !important;
+}
+
+.nav-link-custom.text-warning:hover {
+    background-color: rgba(255, 59, 48, 0.08);
+}
+
+#content-area {
+    padding-top: 76px !important;
+}
+
+/* ⚡ Apple Style Cards & Layout */
+.card {
+    background-color: var(--apple-card) !important;
+    border: 1px solid var(--apple-border) !important;
+    box-shadow: var(--apple-shadow) !important;
+    border-radius: var(--apple-radius-lg) !important;
+    overflow: hidden;
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.card-body {
+    padding: 20px !important;
+}
+
+.alert {
+    border-radius: var(--apple-radius-md) !important;
+    border: none !important;
+    padding: 14px 18px !important;
+    font-weight: 500;
+}
+
+.alert-warning {
+    background-color: rgba(255, 159, 10, 0.1) !important;
+    color: #b25e00 !important;
+    border: 1px solid rgba(255, 159, 10, 0.15) !important;
+}
+
+.alert-info {
+    background-color: rgba(0, 122, 255, 0.08) !important;
+    color: #0062cc !important;
+    border: 1px solid rgba(0, 122, 255, 0.12) !important;
+}
+
+.alert-danger {
+    background-color: rgba(255, 59, 48, 0.08) !important;
+    color: #d82b20 !important;
+    border: 1px solid rgba(255, 59, 48, 0.12) !important;
+}
+
+.alert-success {
+    background-color: rgba(52, 199, 89, 0.08) !important;
+    color: #248a3d !important;
+    border: 1px solid rgba(52, 199, 89, 0.12) !important;
+}
+
+/* ⚡ Inputs & Forms */
+.form-control, .form-select {
+    font-family: var(--font-inter);
+    background-color: #f5f5f7 !important;
+    border: 1px solid transparent !important;
+    color: var(--apple-text) !important;
+    border-radius: var(--apple-radius-md) !important;
+    padding: 10px 14px !important;
+    font-size: 0.95rem !important;
+    font-weight: 500;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1) !important;
+}
+
+.form-control::placeholder {
+    color: var(--apple-text-muted) !important;
+    opacity: 0.8;
+}
+
+.form-control:focus, .form-select:focus {
+    background-color: var(--apple-card) !important;
+    border-color: var(--apple-primary) !important;
+    box-shadow: 0 0 0 4px rgba(0, 113, 227, 0.15) !important;
+    color: var(--apple-text-dark) !important;
+}
+
+.form-label {
+    color: var(--apple-text-muted) !important;
+    font-weight: 600;
+    margin-bottom: 6px;
+    font-size: 0.8rem !important;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+/* ⚡ iOS-style Segmented Control (Pills/Tabs) */
+.nav-pills {
+    background-color: #eeeeef !important;
+    padding: 4px !important;
+    border-radius: var(--apple-radius-lg) !important;
+    border: none !important;
+}
+
+.nav-pills .nav-link {
+    color: var(--apple-text) !important;
+    background: transparent !important;
+    font-family: var(--font-inter);
+    font-weight: 600;
+    font-size: 0.85rem !important;
+    padding: 8px 16px !important;
+    border-radius: calc(var(--apple-radius-lg) - 4px) !important;
+    transition: all 0.2s ease;
+}
+
+.nav-pills .nav-link.active {
+    background-color: var(--apple-card) !important;
+    color: var(--apple-text-dark) !important;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08), 0 4px 12px rgba(0, 0, 0, 0.04) !important;
+}
+
+/* ⚡ Custom Button Styles */
+.btn {
+    font-family: var(--font-inter);
+    font-weight: 600 !important;
+    font-size: 0.9rem !important;
+    border-radius: var(--apple-radius-md) !important;
+    padding: 8px 16px !important;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1) !important;
+    border: none !important;
+}
+
+.btn-primary {
+    background-color: var(--apple-primary) !important;
+    color: white !important;
+}
+
+.btn-primary:hover:not(:disabled) {
+    background-color: var(--apple-primary-hover) !important;
+    transform: translateY(-1px);
+}
+
+.btn-primary:active:not(:disabled) {
+    transform: translateY(0);
+}
+
+.btn-success {
+    background-color: var(--apple-success) !important;
+    color: white !important;
+}
+
+.btn-success:hover:not(:disabled) {
+    background-color: #2fb350 !important;
+    transform: translateY(-1px);
+}
+
+.btn-danger {
+    background-color: var(--apple-danger) !important;
+    color: white !important;
+}
+
+.btn-danger:hover:not(:disabled) {
+    background-color: #e02e24 !important;
+    transform: translateY(-1px);
+}
+
+.btn-light, .btn-outline-secondary {
+    background-color: #f5f5f7 !important;
+    color: var(--apple-text-dark) !important;
+    border: none !important;
+}
+
+.btn-light:hover, .btn-outline-secondary:hover {
+    background-color: #e5e5ea !important;
+}
+
+/* Paint & Toggle Button Styles in Management */
+.btn-outline-warning, .btn-outline-danger {
+    background-color: #f5f5f7 !important;
+    color: var(--apple-text) !important;
+    border: 1px solid var(--apple-border) !important;
+    padding: 6px 12px !important;
+    font-size: 0.8rem !important;
+}
+
+.btn-outline-warning:hover, .btn-outline-warning:active {
+    background-color: var(--shift-morning-bg) !important;
+    color: var(--shift-morning-text) !important;
+    border-color: var(--shift-morning-border) !important;
+}
+
+.btn-outline-danger:hover, .btn-outline-danger:active {
+    background-color: var(--shift-afternoon-bg) !important;
+    color: var(--shift-afternoon-text) !important;
+    border-color: var(--shift-afternoon-border) !important;
+}
+
+/* Weekly view tab navigation */
+.week-btn {
+    border-radius: 0 !important;
+    border: none !important;
+    border-right: 1px solid var(--apple-border) !important;
+    background-color: var(--apple-card) !important;
+}
+
+.week-btn:last-child {
+    border-right: none !important;
+}
+
+.week-btn.active {
+    background-color: #f5f5f7 !important;
+    color: var(--apple-primary) !important;
+    font-weight: 700 !important;
+}
+
+/* ⚡ Modals Override */
+.modal-content {
+    background-color: rgba(255, 255, 255, 0.9) !important;
+    backdrop-filter: blur(25px) !important;
+    -webkit-backdrop-filter: blur(25px) !important;
+    border: 1px solid var(--apple-border) !important;
+    box-shadow: var(--apple-shadow-lg) !important;
+    border-radius: 20px !important;
+    padding: 8px;
+}
+
+/* ⚡ FullCalendar Widget Customization */
 .fc {
-    --fc-border-color: #eee;
-    --fc-button-bg-color: #fff;
-    --fc-button-border-color: #ddd;
-    --fc-button-text-color: #555;
-    --fc-button-active-bg-color: #0d6efd;
-    --fc-button-active-border-color: #0d6efd;
-    --fc-button-hover-bg-color: #f5f5f5;
-    background: white;
+    --fc-border-color: rgba(0, 0, 0, 0.05);
+    --fc-button-bg-color: #f5f5f7;
+    --fc-button-border-color: transparent;
+    --fc-button-text-color: var(--apple-text-dark);
+    --fc-button-active-bg-color: var(--apple-primary);
+    --fc-button-active-border-color: transparent;
+    --fc-button-hover-bg-color: #e5e5ea;
+    --fc-today-bg-color: rgba(0, 113, 227, 0.04);
+    background: transparent !important;
+    border: none !important;
+    font-family: var(--font-inter);
 }
 
 .fc .fc-toolbar-title {
-    font-size: 1.1rem !important;
-    font-weight: bold;
-    color: #333;
+    font-family: var(--font-outfit) !important;
+    font-size: 1.25rem !important;
+    font-weight: 700 !important;
+    color: var(--apple-text-dark);
+    letter-spacing: -0.02em;
 }
 
 .fc .fc-button {
-    text-transform: none;
-    font-size: 0.8rem;
-    font-weight: bold;
-    border-radius: 8px !important;
+    font-family: var(--font-inter) !important;
+    font-size: 0.85rem !important;
+    font-weight: 600 !important;
+    border-radius: 10px !important;
+    padding: 8px 14px !important;
+    transition: all 0.2s ease !important;
+    border: none !important;
     box-shadow: none !important;
 }
 
 .fc .fc-button-primary:not(:disabled).fc-button-active, 
 .fc .fc-button-primary:not(:disabled):active {
-    background-color: #0d6efd;
-    color: white;
+    background-color: var(--apple-primary) !important;
+    color: white !important;
 }
 
 .fc-event {
-    border-radius: 6px !important;
-    padding: 2px 4px !important;
+    border-radius: var(--apple-radius-sm) !important;
+    padding: 4px 6px !important;
     font-size: 0.75rem !important;
+    font-weight: 600 !important;
     border: none !important;
-    margin-bottom: 1px !important;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.02) !important;
+    margin-bottom: 2px !important;
+    transition: transform 0.15s ease;
+}
+
+.fc-event:hover {
+    transform: scale(1.02);
 }
 
 .fc-daygrid-day-number {
     font-size: 0.85rem;
-    color: #666;
+    font-weight: 600;
+    color: var(--apple-text);
+    text-decoration: none !important;
+    padding: 8px !important;
+}
+
+.fc-day-today .fc-daygrid-day-number {
+    color: var(--apple-primary) !important;
+    background-color: rgba(0, 113, 227, 0.08);
+    border-radius: 50%;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 24px;
+    height: 24px;
+    margin: 4px;
+    padding: 0 !important;
+}
+
+.fc-col-header-cell-cushion {
+    font-weight: 700;
+    font-size: 0.8rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--apple-text-muted) !important;
+    text-decoration: none !important;
+    padding: 8px 0 !important;
+}
+
+.fc-scrollgrid {
+    border-radius: var(--apple-radius-lg) !important;
+    overflow: hidden;
+    border: 1px solid rgba(0, 0, 0, 0.06) !important;
+    background-color: var(--apple-card);
+}
+
+/* FullCalendar List View */
+.fc-list-day-cushion {
+    background-color: #f5f5f7 !important;
+    padding: 10px 16px !important;
+}
+
+.fc-list-day-text, .fc-list-day-side-text {
+    font-weight: 700 !important;
+    color: var(--apple-text-dark) !important;
+    font-size: 0.85rem;
     text-decoration: none !important;
 }
 
-/* List View Customization */
-.fc-list-day-cushion {
-    background-color: #f1f3f4 !important;
+.fc-list-event td {
+    padding: 12px 16px !important;
+    font-weight: 600;
+    font-size: 0.8rem;
 }
 
 .fc-list-event:hover td {
-    background-color: #f8f9fa !important;
+    background-color: #fafafa !important;
+}
+
+/* ⚡ Premium Curated Shift Badges */
+.badge {
+    font-family: var(--font-inter);
+    font-weight: 600 !important;
+    padding: 6px 10px !important;
+    border-radius: var(--apple-radius-sm) !important;
+    font-size: 0.75rem !important;
+}
+
+/* Morning (เช้า) Badge Override */
+.badge.bg-warning, .badge[style*="#ffc107"], #mode-เช้า + label {
+    background-color: var(--shift-morning-bg) !important;
+    color: var(--shift-morning-text) !important;
+    border: 1px solid var(--shift-morning-border) !important;
+}
+
+/* Afternoon (บ่าย) Badge Override */
+.badge.bg-danger, .badge[style*="#fd7e14"], #mode-บ่าย + label {
+    background-color: var(--shift-afternoon-bg) !important;
+    color: var(--shift-afternoon-text) !important;
+    border: 1px solid var(--shift-afternoon-border) !important;
+}
+
+/* Night (ดึก) Badge Override */
+.badge[style*="#6f42c1"], #mode-ดึก + label {
+    background-color: var(--shift-night-bg) !important;
+    color: var(--shift-night-text) !important;
+    border: 1px solid var(--shift-night-border) !important;
+}
+
+/* Primary/Role Badges */
+.badge.bg-primary {
+    background-color: rgba(0, 113, 227, 0.08) !important;
+    color: var(--apple-primary) !important;
+    border: 1px solid rgba(0, 113, 227, 0.15) !important;
+}
+
+.badge.bg-light {
+    background-color: #f5f5f7 !important;
+    color: var(--apple-text-muted) !important;
+    border: 1px solid rgba(0, 0, 0, 0.04) !important;
+}
+
+.badge.bg-info {
+    background-color: rgba(0, 122, 255, 0.08) !important;
+    color: #0062cc !important;
+    border: 1px solid rgba(0, 122, 255, 0.15) !important;
+}
+
+/* ⚡ List Group Overrides */
+.list-group-item {
+    background-color: var(--apple-card) !important;
+    border-color: rgba(0, 0, 0, 0.04) !important;
+    padding: 16px 20px !important;
+    transition: background-color 0.2s ease;
+}
+
+.list-group-item:hover {
+    background-color: #fafafa !important;
+}
+
+/* Paint Mode Button Group */
+.btn-group.shadow-sm {
+    box-shadow: none !important;
+    border: 1px solid var(--apple-border);
+    border-radius: var(--apple-radius-md);
+    overflow: hidden;
+}
+
+.btn-group .btn-check + .btn {
+    border-radius: 0 !important;
+    border: none !important;
+    border-right: 1px solid var(--apple-border) !important;
+    padding: 8px 12px !important;
+    font-size: 0.8rem !important;
+    background-color: var(--apple-card) !important;
+    color: var(--apple-text) !important;
+}
+
+.btn-group .btn-check + .btn:last-child {
+    border-right: none !important;
+}
+
+.btn-group .btn-check:checked + .btn {
+    background-color: #f5f5f7 !important;
+    color: var(--apple-text-dark) !important;
+    font-weight: 700 !important;
+}
+
+.btn-group .btn-check:checked + .btn[for="mode-select"] {
+    background-color: #e5e5ea !important;
+}
+
+.btn-group .btn-check:checked + .btn[for="mode-เช้า"] {
+    background-color: var(--shift-morning-bg) !important;
+    color: var(--shift-morning-text) !important;
+}
+
+.btn-group .btn-check:checked + .btn[for="mode-บ่าย"] {
+    background-color: var(--shift-afternoon-bg) !important;
+    color: var(--shift-afternoon-text) !important;
+}
+
+.btn-group .btn-check:checked + .btn[for="mode-ดึก"] {
+    background-color: var(--shift-night-bg) !important;
+    color: var(--shift-night-text) !important;
+}
+
+.btn-group .btn-check:checked + .btn[for="mode-clear"] {
+    background-color: rgba(255, 59, 48, 0.1) !important;
+    color: var(--apple-danger) !important;
 }
